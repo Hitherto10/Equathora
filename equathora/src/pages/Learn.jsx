@@ -343,7 +343,7 @@ const Learn = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <figure><img src={Idea} alt="idea image" /></figure>
+            <figure><img src={Idea} alt="idea image" fetchPriority="high" loading="eager" decoding="async" width="200" height="200" /></figure>
             <div id="learn-explore">
               <h1>Explore the Math <br />exercises on <span className="text-[var(--dark-accent-color)] relative inline-block">
                 Equathora

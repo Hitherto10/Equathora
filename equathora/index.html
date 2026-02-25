@@ -24,18 +24,25 @@
   <meta name="twitter:description"
     content="Track streaks, earn reputation, and solve curated math problems every day." />
   <meta name="twitter:image" content="/src/assets/logo/TransparentFullLogo.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Sansation:wght@300;400;700&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://va.vercel-scripts.com" crossorigin />
+  <!-- Preload LCP image for /learn page -->
+  <link rel="preload" as="image" href="/src/assets/images/idea.svg" fetchpriority="high" />
+  <!-- Non-render-blocking font loading -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Sansation:wght@300;400;700&family=Lexend:wght@100..900&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap" />
+  <link href="https://fonts.googleapis.com/css2?family=Sansation:wght@300;400;700&family=Lexend:wght@100..900&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Sansation:wght@300;400;700&family=Lexend:wght@100..900&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" /></noscript>
   <title>Equathora - Master Math Through Practice</title>
 
-  <!-- MathJax for rendering LaTeX equations -->
+  <!-- Autoland tracker (deferred) -->
   <script>
     window.AFConfig = {
       clientId: "its_me_fr"
     };
   </script>
-  <script src="https://cdn.autoland.dev/tracker.min.js" async></script>
+  <script src="https://cdn.autoland.dev/tracker.min.js" async defer></script>
+  <!-- MathJax for rendering LaTeX equations (deferred) -->
   <script>
     window.MathJax = {
       tex: {
@@ -46,10 +53,13 @@
       },
       options: {
         skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+      },
+      startup: {
+        typeset: false
       }
     };
   </script>
-  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script id="MathJax-script" async defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 
 <body>

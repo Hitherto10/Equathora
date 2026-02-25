@@ -15,8 +15,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Only split mathlive (huge, rarely changes) into its own chunk
+          // Split heavy rarely-changing libraries into their own chunks
           'mathlive': ['mathlive'],
+          'react-icons': ['react-icons'],
+          'framer-motion': ['framer-motion'],
+          'supabase': ['@supabase/supabase-js'],
         }
       }
     },
