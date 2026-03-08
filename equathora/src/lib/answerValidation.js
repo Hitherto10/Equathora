@@ -78,6 +78,30 @@ const isNumericallyEqual = (userAnswer, correctAnswer, tolerance = 0.01) => {
     return Math.abs(userNum - correctNum) <= tolerance;
 };
 
+// Proof-type placeholder values that are never valid student answers.
+// These exist in the seed data for "show that..." / "prove that..." problems
+// where there is no numeric/algebraic answer to match against.
+// Task 1.5 audit: 43 proof problems found in seed_110_hard_problems_hallknight.sql
+// IDs: 103,104,110,112,114,116,119,121-123,125-135,145-146,148-149,153-154,
+//      162-163,165,168,179-180,182-183,187,189-190,192,196-197,202,205,210
+const PROOF_PLACEHOLDERS = new Set([
+    'proof required',
+    'proof',
+    'proved',
+]);
+
+/**
+ * Returns true if every accepted answer for this problem is a proof placeholder.
+ * These problems cannot be auto-scored by text-matching.
+ */
+const isProofProblem = (problem) => {
+    const answers = problem.acceptedAnswers || (problem.answer ? [problem.answer] : []);
+    if (answers.length === 0) return false;
+    return answers.every(
+        (a) => PROOF_PLACEHOLDERS.has(a.toString().toLowerCase().trim())
+    );
+};
+
 /**
  * Main validation function
  * Returns: { isCorrect: boolean, feedback: string, score: number }
@@ -88,6 +112,18 @@ export const validateAnswer = async (userAnswer, problem) => {
             isCorrect: false,
             feedback: 'Please provide an answer in the last step before submitting.',
             score: 0
+        };
+    }
+
+    // Proof problems cannot be auto-scored — reject with an informative message
+    if (isProofProblem(problem)) {
+        return {
+            isCorrect: false,
+            feedback:
+                'This is a proof problem. Automatic scoring is not supported — ' +
+                'work through the proof on paper and check the solution when ready.',
+            score: 0,
+            isProofProblem: true,
         };
     }
 

@@ -9,7 +9,7 @@ public static class ProblemEndpoints
         {
             return await db.Problems
                 .Where(p => p.IsActive)
-                .Select(p => new 
+                .Select(p => new
                 {
                     p.Id,
                     p.Title,

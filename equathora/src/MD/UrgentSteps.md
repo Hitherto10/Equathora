@@ -40,19 +40,23 @@
 - **What was done:** The `Problem` model now uses `[Table]` and `[Column]` data annotations, so EF Core auto-maps correctly. No explicit `OnModelCreating` configuration was needed. `AppDbContext.cs` was already clean (auto-convention based). Build succeeds.
 - **Cascading files updated:** `Attempt.cs`, `AttemptRequest.cs`, `ProblemPublicDto.cs`, `ProblemEndpoints.cs`, `DbSeeder.cs`, `/api/problems` endpoint in `Program.cs`.
 
-### 1.4 Create a SQL migration script for schema alignment
-- **File:** New file `backend/EquathoraBackend/Migrations/fix_schema_alignment.sql`
-- **Task:** Write a migration that documents the C# model ↔ Supabase alignment. Include column type verification queries and any ALTER TABLE statements if columns were missing.
+### ✅ 1.4 Create a SQL migration script for schema alignment
+- **File:** `backend/EquathoraBackend/SQL/fix_schema_alignment.sql`
+- **Task:** ~~Write a migration~~ **DONE.**
+- **What was done:** Created 7-section SQL script: (1) Audit query listing all columns, (2) `ALTER TABLE … ADD COLUMN IF NOT EXISTS` for all missing columns, (3) Type check for `id` int and `difficulty` VARCHAR, (4) Difficulty CHECK constraint with PL/pgSQL guard, (5) `updated_at` trigger, (6) Slug backfill for rows missing slug, (7) Final verification counts. Safe to re-run (all idempotent).
 - **Ref:** (ToDo L881-894) schema mismatch fix, `claude/DATABASE_STANDARDS.md` for exact schema
 
-### 1.5 Fix proof-problem validation exploit — identify affected problems
-- **File:** `backend/EquathoraBackend/books/hallknight_hard_exercises.txt` + seed SQL files
-- **Task:** Search seed files for all problems where `accepted_answers` contains `'Proof required'`, `'proof'`, or `'proved'`. List all ~25 affected problem IDs. These come from the Hall & Knight extraction.
+### ✅ 1.5 Fix proof-problem validation exploit — identify affected problems
+- **File:** `backend/EquathoraBackend/SQL/seed_110_hard_problems_hallknight.sql`
+- **Task:** ~~Search seed files for proof problems.~~ **DONE.**
+- **What was found:** **43 problems** (not ~25) have `accepted_answers` consisting entirely of `'Proof required'`, `'proof'`, `'proved'` placeholders. IDs: `103, 104, 110, 112, 114, 116, 119, 121, 122, 123, 125, 126, 127, 129, 130, 131, 132, 133, 134, 135, 145, 146, 148, 149, 153, 154, 162, 163, 165, 168, 179, 180, 182, 183, 187, 189, 190, 192, 196, 197, 202, 205, 210`. All are "show that" / "prove that" problems from Hall & Knight Higher Algebra.
 - **Ref:** (ToDo L70-73) proof exploit description, (ToDo L243-255) proof problem fix options
 
-### 1.6 Fix proof-problem validation — update answerValidation.js
+### ✅ 1.6 Fix proof-problem validation — update answerValidation.js
 - **File:** `src/lib/answerValidation.js`
-- **Task:** Add a check: if a problem's `accepted_answers` only contains proof-type placeholders (`'Proof required'`, `'proof'`, `'proved'`), mark it as a proof-type problem that **cannot** be scored by text match. Either (a) reject all answers with a "This is a proof problem — scoring not supported yet" message, or (b) flag these problems as unscored.
+- **Task:** ~~Add a check for proof-type problems.~~ **DONE.**
+- **What was done:** Added `PROOF_PLACEHOLDERS` Set (`'proof required'`, `'proof'`, `'proved'`) and `isProofProblem(problem)` helper that returns `true` when ALL `acceptedAnswers` are placeholders. Added early-return guard at the top of `validateAnswer()` that returns `{ isCorrect: false, feedback: 'This is a proof problem…', score: 0, isProofProblem: true }` — preventing any text-match scoring. The `isProofProblem: true` flag allows the UI to optionally render a "View Solution" button instead of a score.
+- **Still needed (task 1.7):** Update the seed SQL file to change the 43 proof problems' `accepted_answers` to `'{}'` and add a `problem_type = 'proof'` column (see task 3.4).
 - **Ref:** (ToDo L70-73, L896-928) answer validation pipeline, `claude/ENGINEERING_STANDARDS.md` error handling rules
 
 ### 1.7 Fix proof-problem validation — update seed data

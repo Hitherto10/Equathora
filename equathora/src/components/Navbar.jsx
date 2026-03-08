@@ -248,7 +248,8 @@ const Navbar = () => {
                   items={discoverItems}
                 />
               </li>
-              <li className='pl-6 lg:pl-4 shrink-0 max-md:hidden  text-[var(--secondary-color)]'><Dropdown
+              <li className='pl-6 lg:pl-4 shrink-0 max-md:hidden  text-[var(--secondary-color)]'>
+                <Dropdown
                 label="More"
                 items={moreItems} />
               </li>
