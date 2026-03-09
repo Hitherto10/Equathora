@@ -1,0 +1,22 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=equathora_dev;Username=equathora_user;Password=YOUR_PASSWORD_HERE"
+  },
+  "BackendSharedSecret": "generate-a-random-secret-here",
+  "JWT": {
+    "SecretKey": "generate-a-random-string-at-least-32-characters-long",
+    "Issuer": "EquathoraAPI",
+    "Audience": "EquathoraClient",
+    "ExpirationMinutes": 60
+  },
+  "Firebase": {
+    "ProjectId": "your-firebase-project-id"
+  }
+}

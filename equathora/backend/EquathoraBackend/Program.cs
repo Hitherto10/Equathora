@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -75,24 +76,39 @@ builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrateg
 // OpenAPI remains
 builder.Services.AddOpenApi();
 
-// ✅ Add CORS
+// CORS — separate policies for dev and production
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactDev", policy =>
     {
-        policy.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod();
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+    options.AddPolicy("Production", policy =>
+    {
+        policy.WithOrigins("https://equathora.com", "https://www.equathora.com")
+              .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH")
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
 var app = builder.Build();
 
 // Enable CORS + auth
-app.UseCors("AllowReactDev");
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("AllowReactDev");
+}
+else
+{
+    app.UseCors("Production");
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Optional: comment out HTTPS redirect for dev
-// app.UseHttpsRedirection();
 
 // OpenAPI mapping
 if (app.Environment.IsDevelopment())
@@ -106,7 +122,7 @@ app.MapPost("/api/auth/register", async (RegisterRequest req, AppDbContext db) =
     var exists = await db.Users.AnyAsync(u => u.Email == req.Email);
     if (exists) return Results.BadRequest(new { error = "Email already registered" });
 
-    var verificationCode = new Random().Next(100000, 999999).ToString();
+    var verificationCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
 
     var user = new User
     {
@@ -122,7 +138,7 @@ app.MapPost("/api/auth/register", async (RegisterRequest req, AppDbContext db) =
     await db.SaveChangesAsync();
 
     // TODO: Send email with verificationCode
-    return Results.Ok(new { message = "Registered. Check your email for verification code.", code = verificationCode });
+    return Results.Ok(new { message = "Registered. Check your email for verification code." });
 });
 
 // Login
@@ -170,13 +186,13 @@ app.MapPost("/api/auth/resend-verification", async (ResendRequest req, AppDbCont
     if (user.IsEmailVerified)
         return Results.Ok(new { message = "Email already verified" });
 
-    var verificationCode = new Random().Next(100000, 999999).ToString();
+    var verificationCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
     user.VerificationCode = verificationCode;
     user.VerificationCodeExpiry = DateTime.UtcNow.AddHours(24);
     await db.SaveChangesAsync();
 
     // TODO: Send email with verificationCode
-    return Results.Ok(new { message = "Verification code resent", code = verificationCode });
+    return Results.Ok(new { message = "Verification code resent" });
 });
 
 // Forgot password - send reset token
@@ -186,13 +202,13 @@ app.MapPost("/api/auth/forgot-password", async (ForgotPasswordRequest req, AppDb
     if (user is null)
         return Results.Ok(new { message = "If the email exists, a reset link has been sent" });
 
-    var resetToken = new Random().Next(100000, 999999).ToString();
+    var resetToken = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
     user.PasswordResetToken = resetToken;
     user.PasswordResetExpiry = DateTime.UtcNow.AddHours(1);
     await db.SaveChangesAsync();
 
     // TODO: Send email with resetToken
-    return Results.Ok(new { message = "Reset code sent to your email", token = resetToken });
+    return Results.Ok(new { message = "Reset code sent to your email" });
 });
 
 // Reset password with token

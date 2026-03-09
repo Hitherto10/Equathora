@@ -27,7 +27,8 @@ dist-ssr
 .env.production
 .env.test
 .env*.local
-.env.example
+# Keep .env.example committed so contributors know what vars to set
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -48,10 +49,15 @@ backend/**/*.userosscache
 backend/**/*.suo
 backend/**/appsettings.Development.json
 backend/**/appsettings.Production.json
+backend/**/appsettings.json
 backend/**/*.db
 backend/**/*.sqlite
 backend/**/*.sqlite3
-appsettings.json
+# Keep .example configs committed for contributors
+!backend/**/*.example
+
+# HTTP test files may contain tokens
+backend/**/test.http
 
 # Firebase Admin SDK - NEVER COMMIT THESE!
 backend/**/firebase-adminsdk*.json
@@ -72,22 +78,24 @@ backend/**/connection-strings.json
 *.key
 *.cert
 
-# Blog system README
+# Internal notes and documentation (not for public repo)
 BLOG_SYSTEM_README.md
-
-
-# exercise source
-exercises.txt
-exercises.json
-fts.txt
-
-ftsHallKnight.txt
-.txt
 ADMIN_NOTIFICATIONS.md
 IMPLEMENTATION_SUMMARY.md
 INTERVIEW_PREP_BACKEND.md
 ToDo.md
-.md
+UrgentSteps.md
+ToDo.txt
+*.md
 
-# Claude AI Standards
+# Exercise/OCR source data
+exercises.txt
+exercises.json
+fts.txt
+ftsHallKnight.txt
+
+# Admin tooling — should not be public
+admin-console-helper.js
+
+# Claude AI Standards (internal)
 /claude
