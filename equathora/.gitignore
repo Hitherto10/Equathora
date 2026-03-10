@@ -86,7 +86,9 @@ INTERVIEW_PREP_BACKEND.md
 ToDo.md
 UrgentSteps.md
 ToDo.txt
-*.md
+RESET_INSTRUCTIONS.md
+# Entire src/MD directory is internal ops notes
+src/MD/
 
 # Exercise/OCR source data
 exercises.txt
