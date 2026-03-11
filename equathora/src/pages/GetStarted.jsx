@@ -187,6 +187,7 @@ const GetStarted = () => {
         if (!selectedOptions[currentStep]) return '';
         return encouragementMessages[currentStep] || '';
     };
+    
 
     return (
         <main className='flex flex-col w-full bg-[var(--main-color)] min-h-screen items-center justify-center px-4 sm:px-6 py-6 font-[Sansation]'>
