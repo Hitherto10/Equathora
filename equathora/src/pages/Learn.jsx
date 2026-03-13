@@ -13,14 +13,30 @@ import { getAllProblems } from '../lib/problemService';
 import { getCompletedProblems, getFavoriteProblems } from '../lib/databaseService';
 import { getInProgressProblems } from '../lib/progressStorage';
 
-// Custom Dropdown Component with Portal
-const FilterDropdown = ({ label, value, options, onChange, placeholder = "All" }) => {
+const formatTopicLabel = (topic) => {
+  if (!topic) return '';
+  return topic
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+const FilterDropdown = ({ label, value, options, onChange, placeholder = "All", multiSelect = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef(null);
 
-  const selectedOption = options.find(opt => opt.value === value);
-  const displayText = selectedOption ? selectedOption.label : placeholder;
+  const selectedValues = value ? value.split(',') : [];
+
+  let displayText;
+  if (selectedValues.length === 0) {
+    displayText = placeholder;
+  } else if (selectedValues.length === 1) {
+    const opt = options.find(o => o.value === selectedValues[0]);
+    displayText = opt ? opt.label : placeholder;
+  } else {
+    displayText = `${selectedValues.length} selected`;
+  }
 
   const updatePosition = () => {
     if (triggerRef.current) {
@@ -54,6 +70,22 @@ const FilterDropdown = ({ label, value, options, onChange, placeholder = "All" }
     }
   }, [isOpen]);
 
+  const handleOptionClick = (e, optionValue) => {
+    e.preventDefault();
+    if (multiSelect) {
+      let newValues;
+      if (selectedValues.includes(optionValue)) {
+        newValues = selectedValues.filter(v => v !== optionValue);
+      } else {
+        newValues = [...selectedValues, optionValue];
+      }
+      onChange(newValues.join(','));
+    } else {
+      onChange(optionValue);
+      setIsOpen(false);
+    }
+  };
+
   return (
     <div className="filter-dropdown">
       <label className="filter-dropdown-label">{label}</label>
@@ -80,23 +112,42 @@ const FilterDropdown = ({ label, value, options, onChange, placeholder = "All" }
           <button
             type="button"
             className={`filter-dropdown-option ${!value ? 'selected' : ''}`}
-            onMouseDown={(e) => { e.preventDefault(); onChange(''); setIsOpen(false); }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onChange('');
+              if (!multiSelect) setIsOpen(false);
+            }}
           >
-            {placeholder}
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {multiSelect && <span style={{ width: '12px', display: 'inline-block' }}></span>}
+              {placeholder}
+            </span>
           </button>
-          {options.map(option => (
-            <button
-              key={option.value}
-              type="button"
-              className={`filter-dropdown-option ${value === option.value ? 'selected' : ''}`}
-              onMouseDown={(e) => { e.preventDefault(); onChange(option.value); setIsOpen(false); }}
-            >
-              {option.label}
-              {option.count !== undefined && (
-                <span className="option-count">({option.count})</span>
-              )}
-            </button>
-          ))}
+          {options.map(option => {
+            const isSelected = selectedValues.includes(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                className={`filter-dropdown-option ${isSelected ? 'selected' : ''}`}
+                onMouseDown={(e) => handleOptionClick(e, option.value)}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {multiSelect && (
+                    <span style={{ width: '12px', display: 'inline-block', fontWeight: 'bold' }}>
+                      {isSelected ? '✓' : ''}
+                    </span>
+                  )}
+                  {option.label}
+                </span>
+                {option.count !== undefined && (
+                  <span className="option-count" style={isSelected ? { color: 'rgba(255,255,255,0.8)' } : {}}>
+                    ({option.count})
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>,
         document.body
       )}
@@ -149,21 +200,26 @@ const Learn = () => {
       }
     });
     return Object.entries(topicCounts)
-      .map(([topic, count]) => ({ value: topic, label: topic, count }))
+      .map(([topic, count]) => ({ value: topic, label: formatTopicLabel(topic), count }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [problems]);
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (gradeFilter) count++;
-    if (difficultyFilter) count++;
-    if (statusFilter) count++;
-    if (progressFilter) count++;
-    if (topicFilter) count++;
+    if (gradeFilter) count += gradeFilter.split(',').length;
+    if (difficultyFilter) count += difficultyFilter.split(',').length;
+    if (statusFilter) count += statusFilter.split(',').length;
+    if (progressFilter) count += progressFilter.split(',').length;
+    if (topicFilter) count += topicFilter.split(',').length;
     if (sortBy !== 'default') count++;
     return count;
   }, [gradeFilter, difficultyFilter, statusFilter, progressFilter, topicFilter, sortBy]);
+
+  const removeFilterValue = (key, currentValues, valueToRemove) => {
+    const newValues = currentValues.split(',').filter(v => v !== valueToRemove).join(',');
+    updateFilters({ [key]: newValues });
+  };
 
   const clearAllFilters = () => {
     setSearchParams({}, { replace: true });
@@ -214,36 +270,40 @@ const Learn = () => {
 
     // Apply grade filter
     if (gradeFilter) {
-      const allowedGroups = gradeGroups[gradeFilter] || [];
+      const grades = gradeFilter.split(',');
+      const allowedGroups = grades.flatMap(g => gradeGroups[g] || []);
       filtered = filtered.filter(p => allowedGroups.includes(p.group_id ?? p.groupId));
     }
 
     // Apply difficulty filter
     if (difficultyFilter) {
-      filtered = filtered.filter(p =>
-        p.difficulty?.toLowerCase() === difficultyFilter.toLowerCase()
-      );
+      const difficulties = difficultyFilter.toLowerCase().split(',');
+      filtered = filtered.filter(p => p.difficulty && difficulties.includes(p.difficulty.toLowerCase()));
     }
 
-    // Apply topic filter
     if (topicFilter) {
-      filtered = filtered.filter(p => p.topic === topicFilter);
+      const topics = topicFilter.split(',');
+      filtered = filtered.filter(p => p.topic && topics.includes(p.topic));
     }
 
     // Apply status filter (completed/not started)
-    if (statusFilter === 'completed') {
-      filtered = filtered.filter(p => p.completed);
-    } else if (statusFilter === 'not-started') {
-      filtered = filtered.filter(p => !p.completed && !p.inProgress);
+    if (statusFilter) {
+      const statuses = statusFilter.split(',');
+      filtered = filtered.filter(p => {
+        if (statuses.includes('completed') && p.completed) return true;
+        if (statuses.includes('not-started') && !p.completed && !p.inProgress) return true;
+        return false;
+      });
     }
 
-    // Apply progress filter
-    if (progressFilter === 'in-progress') {
-      filtered = filtered.filter(p => p.inProgress);
-    } else if (progressFilter === 'favourite') {
-      filtered = filtered.filter(p => p.favourite);
-    } else if (progressFilter === 'premium') {
-      filtered = filtered.filter(p => p.premium || p.is_premium);
+    if (progressFilter) {
+      const progresses = progressFilter.split(',');
+      filtered = filtered.filter(p => {
+        if (progresses.includes('in-progress') && p.inProgress) return true;
+        if (progresses.includes('favourite') && p.favourite) return true;
+        if (progresses.includes('premium') && (p.premium || p.is_premium)) return true;
+        return false;
+      });
     }
 
     // Apply search
@@ -430,6 +490,7 @@ const Learn = () => {
                 options={gradeOptions}
                 onChange={(val) => updateFilters({ grade: val })}
                 placeholder="All Grades"
+                multiSelect={true}
               />
 
               <FilterDropdown
@@ -438,6 +499,7 @@ const Learn = () => {
                 options={difficultyOptions}
                 onChange={(val) => updateFilters({ difficulty: val })}
                 placeholder="All Difficulties"
+                multiSelect={true}
               />
 
               <FilterDropdown
@@ -446,6 +508,7 @@ const Learn = () => {
                 options={statusOptions}
                 onChange={(val) => updateFilters({ status: val })}
                 placeholder="All Status"
+                multiSelect={true}
               />
 
               <FilterDropdown
@@ -454,6 +517,7 @@ const Learn = () => {
                 options={progressOptions}
                 onChange={(val) => updateFilters({ progress: val })}
                 placeholder="All Progress"
+                multiSelect={true}
               />
 
               {availableTopics.length > 0 && (
@@ -463,6 +527,7 @@ const Learn = () => {
                   options={availableTopics}
                   onChange={(val) => updateFilters({ topic: val })}
                   placeholder="All Topics"
+                  multiSelect={true}
                 />
               )}
             </div>
@@ -474,37 +539,37 @@ const Learn = () => {
                   <FaFilter /> Active filters:
                 </span>
                 <div className="active-filters-pills">
-                  {gradeFilter && (
-                    <span className="active-filter-pill">
-                      Grade {gradeFilter}
-                      <button onClick={() => updateFilters({ grade: '' })}><FaTimes /></button>
+                  {gradeFilter && gradeFilter.split(',').map(grade => (
+                    <span key={`grade-${grade}`} className="active-filter-pill">
+                      Grade {grade}
+                      <button onClick={() => removeFilterValue('grade', gradeFilter, grade)}><FaTimes /></button>
                     </span>
-                  )}
-                  {difficultyFilter && (
-                    <span className={`active-filter-pill ${difficultyFilter}`}>
-                      {difficultyFilter.charAt(0).toUpperCase() + difficultyFilter.slice(1)}
-                      <button onClick={() => updateFilters({ difficulty: '' })}><FaTimes /></button>
+                  ))}
+                  {difficultyFilter && difficultyFilter.split(',').map(diff => (
+                    <span key={`diff-${diff}`} className={`active-filter-pill ${diff}`}>
+                      {diff.charAt(0).toUpperCase() + diff.slice(1)}
+                      <button onClick={() => removeFilterValue('difficulty', difficultyFilter, diff)}><FaTimes /></button>
                     </span>
-                  )}
-                  {statusFilter && (
-                    <span className="active-filter-pill">
-                      {statusFilter === 'completed' ? 'Completed' : 'Not Started'}
-                      <button onClick={() => updateFilters({ status: '' })}><FaTimes /></button>
+                  ))}
+                  {statusFilter && statusFilter.split(',').map(status => (
+                    <span key={`status-${status}`} className="active-filter-pill">
+                      {status === 'completed' ? 'Completed' : 'Not Started'}
+                      <button onClick={() => removeFilterValue('status', statusFilter, status)}><FaTimes /></button>
                     </span>
-                  )}
-                  {progressFilter && (
-                    <span className="active-filter-pill">
-                      {progressFilter === 'in-progress' ? 'In Progress' :
-                        progressFilter === 'favourite' ? 'Favourite' : 'Premium'}
-                      <button onClick={() => updateFilters({ progress: '' })}><FaTimes /></button>
+                  ))}
+                  {progressFilter && progressFilter.split(',').map(prog => (
+                    <span key={`prog-${prog}`} className="active-filter-pill">
+                      {prog === 'in-progress' ? 'In Progress' :
+                        prog === 'favourite' ? 'Favourite' : 'Premium'}
+                      <button onClick={() => removeFilterValue('progress', progressFilter, prog)}><FaTimes /></button>
                     </span>
-                  )}
-                  {topicFilter && (
-                    <span className="active-filter-pill topic">
-                      {topicFilter}
-                      <button onClick={() => updateFilters({ topic: '' })}><FaTimes /></button>
+                  ))}
+                  {topicFilter && topicFilter.split(',').map(topic => (
+                    <span key={`topic-${topic}`} className="active-filter-pill topic">
+                      {formatTopicLabel(topic)}
+                      <button onClick={() => removeFilterValue('topic', topicFilter, topic)}><FaTimes /></button>
                     </span>
-                  )}
+                  ))}
                   {sortBy !== 'default' && (
                     <span className="active-filter-pill sort">
                       {sortOptions.find(o => o.value === sortBy)?.label}
