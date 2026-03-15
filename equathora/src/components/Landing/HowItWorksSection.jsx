@@ -9,28 +9,28 @@ const HowItWorksSection = () => {
             title: 'Choose your topic',
             description: 'Browse through algebra, calculus, logic, and more. Pick what matches your current goals.',
             icon: FaBookOpen,
-            color: 'from-blue-500 to-blue-600',
+            color: '!bg-[linear-gradient(360deg,var(--accent-color),var(--dark-accent-color))]',
         },
         {
             step: '02',
             title: 'Solve problems',
             description: 'Work through carefully crafted challenges. Use hints when stuck, learn from solutions.',
             icon: FaPencilAlt,
-            color: 'from-[var(--accent-color)] to-[var(--dark-accent-color)]',
+            color: '!bg-[linear-gradient(360deg,var(--accent-color),var(--dark-accent-color))]',
         },
         {
             step: '03',
             title: 'Track progress',
             description: 'Watch your stats grow. Maintain streaks, earn achievements, see improvement over time.',
             icon: FaChartLine,
-            color: 'from-green-500 to-green-600',
+            color: '!bg-[linear-gradient(360deg,var(--accent-color),var(--dark-accent-color))]',
         },
         {
             step: '04',
             title: 'Master concepts',
             description: 'Build real intuition through consistent practice. Math becomes your strength.',
             icon: FaTrophy,
-            color: 'from-yellow-500 to-orange-500',
+            color: '!bg-[linear-gradient(360deg,var(--accent-color),var(--dark-accent-color))]',
         },
     ];
 
