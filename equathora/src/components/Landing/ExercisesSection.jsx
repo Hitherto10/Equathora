@@ -94,118 +94,121 @@ const ExercisesSection = () => {
     ];
 
     return (
-        <section className="w-full bg-white relative overflow-hidden flex justify-center flex-col px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32 py-12 sm:py-16 md:py-20 lg:py-24 gap-10">
-            {/* Decorative elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-[var(--accent-color)]/5 to-transparent rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-[var(--secondary-color)]/5 to-transparent rounded-full blur-3xl" />
+        <div className="flex justify-center">
+            <section className="max-w-[1400px] mx-auto w-full bg-white relative overflow-hidden flex justify-center flex-col px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32 py-12 sm:py-16 md:py-20 lg:py-24 gap-10">
+                {/* Decorative elements */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-[var(--accent-color)]/5 to-transparent rounded-full blur-3xl" />
+                <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-[var(--secondary-color)]/5 to-transparent rounded-full blur-3xl" />
 
-            <article className='w-full  relative z-10 flex gap-10 flex-col'>
-                <div className="w-full flex flex-col lg:flex-row gap-6">
-                    {/* Section header */}
-                    <motion.div
-                        className="pb-3 flex flex-col lg:w-1/2"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.3 }}
-                        transition={{ duration: 0.5, ease: "easeOut" }}
-                    >
-                        <div className='flex flex-col'>
-                            <h2 className="text-3xl sm:text-3xl md:text-4xl lg:text-4xl font-extrabold text-[var(--secondary-color)] pb-2">
-                                Over {' '}
-                                <span className="text-[var(--secondary-color)] relative inline-block">
-                                    210 math exercises.
-                                    <motion.svg
-                                        className="absolute -bottom-2 left-0 w-full"
-                                        viewBox="0 0 200 8"
-                                        initial={{ pathLength: 0 }}
-                                        animate={{ pathLength: 1 }}
-                                        transition={{ delay: 0.8, duration: 0.8 }}
-                                    >
-                                        <motion.path
-                                            d="M0 4 Q50 0 100 4 Q150 8 200 4"
-                                            fill="none"
-                                            stroke="var(--secondary-color)"
-                                            strokeWidth="3"
-                                            strokeLinecap="round"
+                <article className='w-full  relative z-10 flex gap-10 flex-col'>
+                    <div className="w-full flex flex-col lg:flex-row gap-6">
+                        {/* Section header */}
+                        <motion.div
+                            className="pb-3 flex flex-col lg:w-1/2"
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, amount: 0.3 }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                        >
+                            <div className='flex flex-col'>
+                                <h2 className="text-3xl sm:text-3xl md:text-4xl lg:text-4xl font-extrabold text-[var(--secondary-color)] pb-2">
+                                    Over {' '}
+                                    <span className="text-[var(--secondary-color)] relative inline-block">
+                                        210 math exercises.
+                                        <motion.svg
+                                            className="absolute -bottom-2 left-0 w-full"
+                                            viewBox="0 0 200 8"
                                             initial={{ pathLength: 0 }}
                                             animate={{ pathLength: 1 }}
                                             transition={{ delay: 0.8, duration: 0.8 }}
-                                        />
-                                    </motion.svg>
-                                </span>
-                            </h2>
-                            <p className="text-3xl sm:text-3xl md:text-4xl lg:text-4xl font-extrabold text-[var(--secondary-color)] pb-4">
-                                From "Algebra Basics" to "Calculus Puzzles".
-                            </p>
-                            <p className="text-sm sm:text-xl md:text-2xl max-w-3xl font-light">
-                                Learn by doing. Get better at mathematics through fun problem-solving that builds your understanding of concepts.
-                            </p>
+                                        >
+                                            <motion.path
+                                                d="M0 4 Q50 0 100 4 Q150 8 200 4"
+                                                fill="none"
+                                                stroke="var(--secondary-color)"
+                                                strokeWidth="3"
+                                                strokeLinecap="round"
+                                                initial={{ pathLength: 0 }}
+                                                animate={{ pathLength: 1 }}
+                                                transition={{ delay: 0.8, duration: 0.8 }}
+                                            />
+                                        </motion.svg>
+                                    </span>
+                                </h2>
+                                <p className="text-3xl sm:text-3xl md:text-4xl lg:text-4xl font-extrabold text-[var(--secondary-color)] pb-4">
+                                    From "Algebra Basics" to "Calculus Puzzles".
+                                </p>
+                                <p className="text-sm sm:text-xl md:text-2xl max-w-3xl font-light">
+                                    Learn by doing. Get better at mathematics through fun problem-solving that builds your understanding of concepts.
+                                </p>
+                            </div>
+
+                        </motion.div>
+
+                        {/* Exercise cards grid */}
+                        <div className="flex flex-col gap-3 lg:w-1/2">
+                            {exercises.map((exercise, index) => (
+                                <motion.div
+                                    key={exercise.title}
+                                    className="bg-white rounded-md transition-all duration-300 p-3 sm:py-3 px-5 shadow-[10px_0_25px_rgba(141,153,174,0.3)] flex items-center gap-6 h-22"
+                                    initial={{ opacity: 0, y: 30 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, amount: 0.2 }}
+                                    transition={{ delay: index * 0.1, duration: 0.5, ease: "easeOut" }}
+                                >
+                                    <div className='flex'>
+                                        {exercise.icon}
+                                    </div>
+                                    <div className='flex flex-col justify-center w-full'>
+                                        {/* Title */}
+                                        <h3 className="text-lg sm:text-xl font-bold text-[var(--secondary-color)]">
+                                            {exercise.title}
+                                        </h3>
+                                        {/* Description */}
+                                        <p className="text-[var(--secondary-color)] font-light text-sm sm:text-base">
+                                            {exercise.description}
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            ))}
                         </div>
-
-                    </motion.div>
-
-                    {/* Exercise cards grid */}
-                    <div className="flex flex-col gap-3 lg:w-1/2">
-                        {exercises.map((exercise, index) => (
-                            <motion.div
-                                key={exercise.title}
-                                className="bg-white rounded-md transition-all duration-300 p-3 sm:py-3 px-5 shadow-[10px_0_25px_rgba(141,153,174,0.3)] flex items-center gap-6 h-22"
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true, amount: 0.2 }}
-                                transition={{ delay: index * 0.1, duration: 0.5, ease: "easeOut" }}
-                            >
-                                <div className='flex'>
-                                    {exercise.icon}
-                                </div>
-                                <div className='flex flex-col justify-center w-full'>
-                                    {/* Title */}
-                                    <h3 className="text-lg sm:text-xl font-bold text-[var(--secondary-color)]">
-                                        {exercise.title}
-                                    </h3>
-                                    {/* Description */}
-                                    <p className="text-[var(--secondary-color)] font-light text-sm sm:text-base">
-                                        {exercise.description}
-                                    </p>
-                                </div>
-                            </motion.div>
-                        ))}
                     </div>
+                    <div className='w-full'>
+                        <img src={Screenshot} alt="List of the problems" className='rounded-md w-full shadow-[10px_0_25px_rgba(141,153,174,0.3)]' />
+                    </div>
+                </article>
+
+                {/* Features list */}
+                <div className="flex gap-8 sm:gap-10 md:gap-12 flex-col lg:flex-row ">
+                    {features.map((feature, index) => (
+                        <motion.div
+                            key={feature.title}
+                            className="flex flex-col items-start text-left w-full lg:w-1/3"
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, amount: 0.3 }}
+                            transition={{ delay: index * 0.15, duration: 0.5, ease: "easeOut" }}
+                        >
+                            {/* Icon */}
+                            <div className="pb-2 sm:pb-4">
+                                {feature.icon}
+                            </div>
+
+                            {/* Title */}
+                            <h3 className="text-lg sm:text-xl font-bold text-[var(--secondary-color)] pb-1 sm:pb-2">
+                                {feature.title}
+                            </h3>
+
+                            {/* Description */}
+                            <p className="text-[var(--secondary-color)] font-light text-sm sm:text-base">
+                                {feature.description}
+                            </p>
+                        </motion.div>
+                    ))}
                 </div>
-                <div className='w-full'>
-                    <img src={Screenshot} alt="List of the problems" className='rounded-md w-full shadow-[10px_0_25px_rgba(141,153,174,0.3)]' />
-                </div>
-            </article>
+            </section>
+        </div>
 
-            {/* Features list */}
-            <div className="flex gap-8 sm:gap-10 md:gap-12 flex-col lg:flex-row ">
-                {features.map((feature, index) => (
-                    <motion.div
-                        key={feature.title}
-                        className="flex flex-col items-start text-left w-full lg:w-1/3"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.3 }}
-                        transition={{ delay: index * 0.15, duration: 0.5, ease: "easeOut" }}
-                    >
-                        {/* Icon */}
-                        <div className="pb-2 sm:pb-4">
-                            {feature.icon}
-                        </div>
-
-                        {/* Title */}
-                        <h3 className="text-lg sm:text-xl font-bold text-[var(--secondary-color)] pb-1 sm:pb-2">
-                            {feature.title}
-                        </h3>
-
-                        {/* Description */}
-                        <p className="text-[var(--secondary-color)] font-light text-sm sm:text-base">
-                            {feature.description}
-                        </p>
-                    </motion.div>
-                ))}
-            </div>
-        </section>
     );
 };
 
