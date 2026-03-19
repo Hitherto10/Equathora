@@ -697,7 +697,6 @@ const About = () => {
                                             </div>
                                         </div>
                                         <motion.div
-                                            whileHover={{ scale: 1.01 }}
                                             whileTap={{ scale: 0.95 }}
                                         >
                                             <Link

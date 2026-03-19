@@ -30,8 +30,8 @@ const typeConfig = {
             </svg>
         ),
         label: 'Achievement',
-        bgColor: 'bg-amber-50',
-        borderColor: 'border-amber-400',
+        bgColor: '',
+        borderColor: '',
         badgeColor: 'bg-amber-100 text-amber-700',
     },
     streak: {
@@ -42,8 +42,8 @@ const typeConfig = {
             </svg>
         ),
         label: 'Streak',
-        bgColor: 'bg-orange-50',
-        borderColor: 'border-orange-400',
+        bgColor: '',
+        borderColor: '',
         badgeColor: 'bg-orange-100 text-orange-700',
     },
     system: {
@@ -54,8 +54,8 @@ const typeConfig = {
             </svg>
         ),
         label: 'System',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-400',
+        bgColor: '',
+        borderColor: '',
         badgeColor: 'bg-blue-100 text-blue-700',
     },
     friend: {
@@ -66,8 +66,8 @@ const typeConfig = {
             </svg>
         ),
         label: 'Friends',
-        bgColor: 'bg-purple-50',
-        borderColor: 'border-purple-400',
+        bgColor: '',
+        borderColor: '',
         badgeColor: 'bg-purple-100 text-purple-700',
     },
     problem: {
@@ -78,8 +78,8 @@ const typeConfig = {
             </svg>
         ),
         label: 'Problem',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-400',
+        bgColor: '',
+        borderColor: '',
         badgeColor: 'bg-green-100 text-green-700',
     },
     leaderboard: {
@@ -90,8 +90,8 @@ const typeConfig = {
             </svg>
         ),
         label: 'Leaderboard',
-        bgColor: 'bg-indigo-50',
-        borderColor: 'border-indigo-400',
+        bgColor: '',
+        borderColor: '',
         badgeColor: 'bg-indigo-100 text-indigo-700',
     },
 };
@@ -275,7 +275,7 @@ const Notifications = () => {
                                 onClick={() => { setFilter(opt.value); setSelectedIds([]); }}
                                 className={`px-4 py-2 rounded-md text-xs font-semibold whitespace-nowrap transition-all shrink-0 cursor-pointer ${filter === opt.value
                                     ? 'bg-gradient-to-t from-[var(--accent-color)] to-[var(--dark-accent-color)] text-white'
-                                    : 'bg-white text-[var(--secondary-color)] border border-[var(--french-gray)] hover:bg-gray-50'
+                                    : 'bg-white text-[var(--secondary-color)] hover:bg-gray-100'
                                 }`}
                             >
                                 {opt.label}
@@ -421,10 +421,6 @@ const Notifications = () => {
                                                     </span>
                                                     )}
                                                 </div>
-
-                                                <div className={`flex items-center justify-center w-10 h-10 rounded-md shrink-0 ${config.bgColor}`}>
-                                                    {config.icon}
-                                                </div>
                                             </div>
 
 
@@ -451,6 +447,9 @@ const Notifications = () => {
                                                 <span className="text-[10px] text-[var(--secondary-color)]">
                                                     {formatTimeAgo(notification.created_at)}
                                                 </span>
+                                            </div>
+                                            <div className={`flex items-center justify-center w-10 h-10 rounded-md shrink-0 ${config.bgColor}`}>
+                                                {config.icon}
                                             </div>
                                         </motion.div>
                                     );
