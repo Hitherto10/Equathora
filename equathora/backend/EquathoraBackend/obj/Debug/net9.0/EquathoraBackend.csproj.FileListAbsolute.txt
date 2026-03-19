@@ -7,8 +7,6 @@ C:\Users\halil\OneDrive - TURKIYE MAARIF VAKFI\Desktop\ITTS 24-25-26\Web Develop
 C:\Users\halil\OneDrive - TURKIYE MAARIF VAKFI\Desktop\ITTS 24-25-26\Web Development\Equathora\equathora\backend\EquathoraBackend\obj\Debug\net9.0\EquathoraBackend.MvcApplicationPartsAssemblyInfo.cs
 C:\Users\halil\OneDrive - TURKIYE MAARIF VAKFI\Desktop\ITTS 24-25-26\Web Development\Equathora\equathora\backend\EquathoraBackend\obj\Debug\net9.0\EquathoraBackend.MvcApplicationPartsAssemblyInfo.cache
 C:\Users\halil\OneDrive - TURKIYE MAARIF VAKFI\Desktop\ITTS 24-25-26\Web Development\Equathora\equathora\backend\EquathoraBackend\obj\Debug\net9.0\EquathoraBackend.sourcelink.json
-C:\Users\halil\OneDrive - TURKIYE MAARIF VAKFI\Desktop\ITTS 24-25-26\Web Development\Equathora\equathora\backend\EquathoraBackend\bin\Debug\net9.0\appsettings.Development.json
-C:\Users\halil\OneDrive - TURKIYE MAARIF VAKFI\Desktop\ITTS 24-25-26\Web Development\Equathora\equathora\backend\EquathoraBackend\bin\Debug\net9.0\appsettings.json
 C:\Users\halil\OneDrive - TURKIYE MAARIF VAKFI\Desktop\ITTS 24-25-26\Web Development\Equathora\equathora\backend\EquathoraBackend\bin\Debug\net9.0\EquathoraBackend.staticwebassets.endpoints.json
 C:\Users\halil\OneDrive - TURKIYE MAARIF VAKFI\Desktop\ITTS 24-25-26\Web Development\Equathora\equathora\backend\EquathoraBackend\bin\Debug\net9.0\EquathoraBackend.exe
 C:\Users\halil\OneDrive - TURKIYE MAARIF VAKFI\Desktop\ITTS 24-25-26\Web Development\Equathora\equathora\backend\EquathoraBackend\bin\Debug\net9.0\EquathoraBackend.deps.json

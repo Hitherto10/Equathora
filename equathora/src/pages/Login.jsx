@@ -8,6 +8,7 @@ import Logo from '../assets/logo/EquathoraLogoFull.svg';
 import GoogleAuth from '../components/GoogleAuth.jsx';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { FaEyeSlash, FaEye } from 'react-icons/fa';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -15,6 +16,16 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Peek at password
+  const [type, setType] = useState('password');
+  const [peekOpen, setPeekOpen] = useState(false);
+
+  // Handler
+  const togglePeek = () => {
+    setPeekOpen(prev => !prev);
+    setType(prev => prev === 'password' ? 'text' : 'password');
+  };
 
   // Redirect if already logged in
   useEffect(() => {
@@ -105,16 +116,26 @@ const Login = () => {
             />
 
             <h5 className='typeOfInput'>PASSWORD</h5>
-            <input
-              type="password"
-              className='inputAuth'
-              placeholder='Enter your password'
-              minLength="6"
-              maxLength="128"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative w-full">
+              <input
+                type={type}
+                className='inputAuth pr-10'
+                placeholder='Enter your password'
+                minLength="6"
+                maxLength="128"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                onClick={togglePeek}
+                aria-label={peekOpen ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-1/3 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                {peekOpen ? <FaEye size={18} /> : <FaEyeSlash size={18} />}
+              </button>
+            </div>
 
             <Link to="/forgotPassword" className="btnForgotPass" id='forgotPass'>
               Forgot your password?
