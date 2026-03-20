@@ -875,17 +875,17 @@ ENHANCED FILTERING SYSTEM
     color: var(--accent-color);
 }
 
-.active-filter-pill.easy {
+.active-filter-pill.Easy {
     background-color: rgba(34, 197, 94, 0.15);
     color: #16a34a;
 }
 
-.active-filter-pill.medium {
+.active-filter-pill.Medium {
     background-color: rgba(229, 158, 11, 0.15);
     color: #d97706;
 }
 
-.active-filter-pill.hard {
+.active-filter-pill.Hard {
     background-color: rgba(163, 20, 44, 0.15);
     color: #a3142c;
 }

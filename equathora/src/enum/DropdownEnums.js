@@ -1,0 +1,36 @@
+// Enum-like objects for dropdown options
+
+export const GradeOptions = Object.freeze([
+  { value: '8', label: 'Grade 8' },
+  { value: '9', label: 'Grade 9' },
+  { value: '10', label: 'Grade 10' },
+  { value: '11', label: 'Grade 11' },
+  { value: '12', label: 'Grade 12' }
+]);
+
+export const DifficultyOptions = Object.freeze([
+  { value: 'Easy', label: 'Easy' },
+  { value: 'Medium', label: 'Medium' },
+  { value: 'Hard', label: 'Hard' }
+]);
+
+export const StatusOptions = Object.freeze([
+  { value: 'completed', label: 'Completed' },
+  { value: 'not-started', label: 'Not Started' }
+]);
+
+export const ProgressOptions = Object.freeze([
+  { value: 'in-progress', label: 'In Progress' },
+  { value: 'favorite', label: 'Favorite' },
+  { value: 'premium', label: 'Premium' }
+]);
+
+export const SortOptions = Object.freeze([
+  { value: 'default', label: 'Default Order' },
+  { value: 'title-asc', label: 'Title (A-Z)' },
+  { value: 'title-desc', label: 'Title (Z-A)' },
+  { value: 'difficulty-asc', label: 'Difficulty (Easy First)' },
+  { value: 'difficulty-desc', label: 'Difficulty (Hard First)' },
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' }
+]);

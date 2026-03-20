@@ -9,9 +9,8 @@ import Idea from '../assets/images/idea.svg';
 import { FaSearch, FaTimes, FaChevronDown, FaFilter } from 'react-icons/fa';
 import ProblemCard from '../components/ProblemCard.jsx';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getAllProblems } from '../lib/problemService';
-import { getCompletedProblems, getFavoriteProblems } from '../lib/databaseService';
-import { getInProgressProblems } from '../lib/progressStorage';
+import { getProblems } from '../lib/problemService';
+import { GradeOptions, DifficultyOptions, StatusOptions, ProgressOptions, SortOptions } from '../enum/DropdownEnums';
 
 const formatTopicLabel = (topic) => {
   if (!topic) return '';
@@ -156,12 +155,17 @@ const FilterDropdown = ({ label, value, options, onChange, placeholder = "All", 
 };
 
 const Learn = () => {
+  const pageSize = 50; // Default page size
   const [searchParams, setSearchParams] = useSearchParams();
-  const [problems, setProblems] = useState([]);
+  const [problems, setProblems] =  useState({ count: 0, data: [] });;
+  const[facets, setFacets] = useState({ difficulties: [], topics: [], grade: [], progress: [] });
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Read filters from URL query params
   const searchQuery = searchParams.get('q') || '';
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
   const gradeFilter = searchParams.get('grade') || '';
   const difficultyFilter = searchParams.get('difficulty') || '';
   const statusFilter = searchParams.get('status') || '';
@@ -178,6 +182,16 @@ const Learn = () => {
     '12': [8, 9, 10]
   };
 
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 900); // 900ms debounce
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
   // Update URL params helper
   const updateFilters = useCallback((updates) => {
     const newParams = new URLSearchParams(searchParams);
@@ -193,16 +207,11 @@ const Learn = () => {
 
   // Extract unique topics from problems
   const availableTopics = useMemo(() => {
-    const topicCounts = {};
-    problems.forEach(p => {
-      if (p.topic) {
-        topicCounts[p.topic] = (topicCounts[p.topic] || 0) + 1;
-      }
-    });
-    return Object.entries(topicCounts)
+    if (!facets.topic || typeof facets.topic !== 'object') return [];
+    return Object.entries(facets.topic)
       .map(([topic, count]) => ({ value: topic, label: formatTopicLabel(topic), count }))
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [problems]);
+  }, [facets]);
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
@@ -225,38 +234,28 @@ const Learn = () => {
     setSearchParams({}, { replace: true });
   };
 
-  useEffect(() => {
-    const fetchProblems = async () => {
+  const fetchProblems = async () => {
       try {
-        const [allProblems, completedIds, favoriteIds] = await Promise.all([
-          getAllProblems(),
-          getCompletedProblems(),
-          getFavoriteProblems()
-        ]);
-
-        // Get in-progress problems from local storage
-        const inProgressIds = getInProgressProblems();
-
-        const problemsWithStatus = allProblems.map(problem => {
-          const problemIdStr = String(problem.id);
-          const isCompleted = completedIds.includes(problemIdStr);
-          return {
-            ...problem,
-            completed: isCompleted,
-            favourite: favoriteIds.includes(problemIdStr),
-            inProgress: !isCompleted && inProgressIds.includes(problemIdStr)
-          };
+        let problems = await Promise.all([getProblems(currentPage, pageSize)]);  
+        
+        problems = problems[0];
+        setProblems({ count: problems?.count, data: problems?.data });
+        setFacets({
+          grade: problems?.facets?.grade || {},
+          topic: problems?.facets?.topic || {},
+          progress: problems?.facets?.progress || {},
+          difficulty: problems?.facets?.difficulty || {}
         });
-
-        setProblems(problemsWithStatus);
+        setTotalPages(problems.count);
       } catch (error) {
         console.error('Failed to fetch problems:', error);
-        setProblems([]);
+        setProblems({ count: 0, data: [] });
       } finally {
         setLoading(false);
       }
     };
 
+  useEffect(() => {
     fetchProblems();
 
     // Refresh on window focus (when returning from Problem page)
@@ -265,131 +264,82 @@ const Learn = () => {
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  const filteredProblems = useMemo(() => {
-    let filtered = problems;
+  
+  useEffect(() => {
+    const fetchFilteredProblems = async () => {
+      //setLoading(true);
+      try {
+        const problemId = null;
+        const groupId = gradeFilter ? gradeFilter.split(',') : null;
+        const slug = null;
+        const difficulties = difficultyFilter ? difficultyFilter.split(',') : null;
+        const topics = topicFilter ? topicFilter.split(',') : null;
+        const searchTerm = debouncedSearchQuery || null;
+        const sort = sortBy === 'default' ? null : sortBy;
+        const progress = progressFilter ? progressFilter.split(',') : null;
+        const grades = gradeFilter ? gradeFilter.split(',') : null;
 
-    // Apply grade filter
-    if (gradeFilter) {
-      const grades = gradeFilter.split(',');
-      const allowedGroups = grades.flatMap(g => gradeGroups[g] || []);
-      filtered = filtered.filter(p => allowedGroups.includes(p.group_id ?? p.groupId));
+        // Fetch problems from Supabase
+        const response = await getProblems(
+          currentPage,
+          pageSize,
+          problemId,
+          groupId,
+          slug,
+          difficulties,
+          topics,
+          grades,
+          searchTerm,
+          sort,
+          progress
+        );
+        let filtered = response.data || [];
+
+
+        setProblems({ count: filtered.length, data: filtered });
+        setTotalPages(response.count);
+      } catch (error) {
+        setProblems({ count: 0, data: [] });
+      } finally {
+        //setLoading(false);
+      }
+    };
+    fetchFilteredProblems();
+  }, [gradeFilter, difficultyFilter, topicFilter, statusFilter, progressFilter, debouncedSearchQuery, sortBy]);
+
+
+  // Dropdown options from enums
+  const gradeOptions = GradeOptions.map(opt => {
+    const count = facets.grade && typeof facets.grade === 'object' && opt.value in facets.grade ? facets.grade[opt.value] : 0;
+    return { ...opt, count };
+  });
+
+  const difficultyOptions = DifficultyOptions.map(opt => {
+    const count = facets.difficulty && typeof facets.difficulty === 'object' && opt.value in facets.difficulty ? facets.difficulty[opt.value] : 0;
+    return { ...opt, count };
+  });
+
+  const statusOptions = StatusOptions.map(opt => {
+    // No status facet in JSON, fallback to 0
+    return { ...opt, count: 0 };
+  });
+
+  const progressOptions = ProgressOptions.map(opt => {
+    let count = 0;
+    if (facets.progress && typeof facets.progress === 'object') {
+      // Some keys may be missing in backend, so default to 0
+      count = facets.progress[opt.value] !== undefined ? facets.progress[opt.value] : 0;
     }
+    return { ...opt, count };
+  });
 
-    // Apply difficulty filter
-    if (difficultyFilter) {
-      const difficulties = difficultyFilter.toLowerCase().split(',');
-      filtered = filtered.filter(p => p.difficulty && difficulties.includes(p.difficulty.toLowerCase()));
-    }
-
-    if (topicFilter) {
-      const topics = topicFilter.split(',');
-      filtered = filtered.filter(p => p.topic && topics.includes(p.topic));
-    }
-
-    // Apply status filter (completed/not started)
-    if (statusFilter) {
-      const statuses = statusFilter.split(',');
-      filtered = filtered.filter(p => {
-        if (statuses.includes('completed') && p.completed) return true;
-        if (statuses.includes('not-started') && !p.completed && !p.inProgress) return true;
-        return false;
-      });
-    }
-
-    if (progressFilter) {
-      const progresses = progressFilter.split(',');
-      filtered = filtered.filter(p => {
-        if (progresses.includes('in-progress') && p.inProgress) return true;
-        if (progresses.includes('favourite') && p.favourite) return true;
-        if (progresses.includes('premium') && (p.premium || p.is_premium)) return true;
-        return false;
-      });
-    }
-
-    // Apply search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(p =>
-        p.title?.toLowerCase().includes(query) ||
-        p.description?.toLowerCase().includes(query) ||
-        p.topic?.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply sorting
-    switch (sortBy) {
-      case 'title-asc':
-        filtered = [...filtered].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-        break;
-      case 'title-desc':
-        filtered = [...filtered].sort((a, b) => (b.title || '').localeCompare(a.title || ''));
-        break;
-      case 'difficulty-asc':
-        filtered = [...filtered].sort((a, b) => {
-          const order = { 'easy': 1, 'medium': 2, 'hard': 3 };
-          return (order[a.difficulty?.toLowerCase()] || 0) - (order[b.difficulty?.toLowerCase()] || 0);
-        });
-        break;
-      case 'difficulty-desc':
-        filtered = [...filtered].sort((a, b) => {
-          const order = { 'easy': 1, 'medium': 2, 'hard': 3 };
-          return (order[b.difficulty?.toLowerCase()] || 0) - (order[a.difficulty?.toLowerCase()] || 0);
-        });
-        break;
-      case 'newest':
-        filtered = [...filtered].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        break;
-      case 'oldest':
-        filtered = [...filtered].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        break;
-      default:
-        // Keep original order (by group_id and display_order)
-        break;
-    }
-
-    return filtered;
-  }, [gradeFilter, difficultyFilter, topicFilter, statusFilter, progressFilter, searchQuery, sortBy, problems, gradeGroups]);
-
-  // Dropdown options
-  const gradeOptions = [
-    { value: '8', label: 'Grade 8' },
-    { value: '9', label: 'Grade 9' },
-    { value: '10', label: 'Grade 10' },
-    { value: '11', label: 'Grade 11' },
-    { value: '12', label: 'Grade 12' }
-  ];
-
-  const difficultyOptions = [
-    { value: 'easy', label: 'Easy', count: problems.filter(p => p.difficulty?.toLowerCase() === 'easy').length },
-    { value: 'medium', label: 'Medium', count: problems.filter(p => p.difficulty?.toLowerCase() === 'medium').length },
-    { value: 'hard', label: 'Hard', count: problems.filter(p => p.difficulty?.toLowerCase() === 'hard').length }
-  ];
-
-  const statusOptions = [
-    { value: 'completed', label: 'Completed', count: problems.filter(p => p.completed).length },
-    { value: 'not-started', label: 'Not Started', count: problems.filter(p => !p.completed && !p.inProgress).length }
-  ];
-
-  const progressOptions = [
-    { value: 'in-progress', label: 'In Progress', count: problems.filter(p => p.inProgress).length },
-    { value: 'favourite', label: 'Favourite', count: problems.filter(p => p.favourite).length },
-    { value: 'premium', label: 'Premium', count: problems.filter(p => p.premium || p.is_premium).length }
-  ];
-
-  const sortOptions = [
-    { value: 'default', label: 'Default Order' },
-    { value: 'title-asc', label: 'Title (A-Z)' },
-    { value: 'title-desc', label: 'Title (Z-A)' },
-    { value: 'difficulty-asc', label: 'Difficulty (Easy First)' },
-    { value: 'difficulty-desc', label: 'Difficulty (Hard First)' },
-    { value: 'newest', label: 'Newest First' },
-    { value: 'oldest', label: 'Oldest First' }
-  ];
+  const sortOptions = SortOptions;
 
   if (loading) {
     return <LoadingSpinner message="Loading exercises..." />;
   }
 
+ 
   return (
     <>
       <main id='body-learn'>
@@ -560,7 +510,7 @@ const Learn = () => {
                   {progressFilter && progressFilter.split(',').map(prog => (
                     <span key={`prog-${prog}`} className="active-filter-pill">
                       {prog === 'in-progress' ? 'In Progress' :
-                        prog === 'favourite' ? 'Favourite' : 'Premium'}
+                        prog === 'favorite' ? 'Favorite' : 'Premium'}
                       <button onClick={() => removeFilterValue('progress', progressFilter, prog)}><FaTimes /></button>
                     </span>
                   ))}
@@ -584,17 +534,16 @@ const Learn = () => {
           {/* Results Summary */}
           <div className="results-summary">
             <span>
-              Showing <strong>{filteredProblems.length}</strong> of <strong>{problems.length}</strong> exercises
+              Showing <strong>{problems?.data?.length}</strong> of <strong>{totalPages}</strong> exercises
             </span>
-          </div>
-
+          </div>        
           <motion.article
             id='problems-container'
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            {filteredProblems.length === 0 ? (
+            {problems?.count === 0 ? (
               <div className="no-results">
                 <h3>No exercises found</h3>
                 <p>Try adjusting your filters or search query</p>
@@ -603,7 +552,7 @@ const Learn = () => {
                 </button>
               </div>
             ) : (
-              filteredProblems.map((problem) => (
+              problems?.data?.map((problem) => (
                 <motion.div key={problem.id}>
                   <ProblemCard problem={problem} />
                 </motion.div>
@@ -611,11 +560,12 @@ const Learn = () => {
             )}
           </motion.article>
         </section>
-
+            
         <footer>
           <Footer />
         </footer>
       </main>
+
     </>
   );
 };
