@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabaseClient';
 import ProfileExportButtons from '../components/ProfileExportButtons';
 import { getSubmissions } from '../lib/progressStorage';
 import { generateProblemSlug } from '../lib/slugify';
+import { getCachedGlobalLeaderboard } from '../lib/leaderboardService';
 
 const Profile = () => {
   const { profile } = useParams();
@@ -141,6 +142,17 @@ const Profile = () => {
         const mediumSolved = completedProblems.filter(p => p.difficulty === 'Medium').length;
         const hardSolved = completedProblems.filter(p => p.difficulty === 'Hard').length;
 
+        let resolvedGlobalRank = leaderboardRow?.rank || 0;
+        if (!resolvedGlobalRank) {
+          try {
+            const globalLeaderboard = await getCachedGlobalLeaderboard();
+            const leaderboardEntry = (globalLeaderboard || []).find(entry => entry.userId === targetUserId);
+            resolvedGlobalRank = leaderboardEntry?.rank || 0;
+          } catch (rankError) {
+            console.warn('Could not resolve rank from global leaderboard fallback:', rankError);
+          }
+        }
+
         const newUserData = {
           name: displayName,
           username: username,
@@ -161,7 +173,7 @@ const Profile = () => {
             currentStreak: streakRow?.current_streak || 0,
             longestStreak: streakRow?.longest_streak || 0,
             reputation: progressRow?.reputation || 0,
-            globalRank: leaderboardRow?.rank || 0,
+            globalRank: resolvedGlobalRank,
             easy: { solved: easySolved, total: easyProblems.length, percentage: easyProblems.length > 0 ? Math.round((easySolved / easyProblems.length) * 100) : 0 },
             medium: { solved: mediumSolved, total: mediumProblems.length, percentage: mediumProblems.length > 0 ? Math.round((mediumSolved / mediumProblems.length) * 100) : 0 },
             hard: { solved: hardSolved, total: hardProblems.length, percentage: hardProblems.length > 0 ? Math.round((hardSolved / hardProblems.length) * 100) : 0 }
