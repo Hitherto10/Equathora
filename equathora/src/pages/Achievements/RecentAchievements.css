@@ -8,6 +8,7 @@
     display: flex;
     flex-direction: column;
     width: 100%;
+    max-width: 1500px;
     align-items: center;
     justify-content: space-between;
     gap: 40px;
@@ -16,7 +17,7 @@
     box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.5);
     padding: 2rem 1rem;
     font-family: 'Sansation', sans-serif;
-    margin-bottom: 2rem;
+    margin: 0 auto 2rem;
     box-sizing: border-box;
     overflow: hidden;
 }
@@ -29,6 +30,7 @@
 }
 
 .rec-achievements p {
+    text-align: center;
     padding: 1rem 0;
     height: 80px;
 }
@@ -79,20 +81,25 @@
     box-sizing: border-box;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 1rem;
+    gap: 1.1rem;
     align-items: stretch;
 }
 
 .a-list-component {
+    --rarity-start: #4a2b12;
+    --rarity-end: #c67b34;
+    --rarity-border: #d69557;
     width: 100%;
     box-sizing: border-box;
-    min-height: 110px;
+    min-height: 128px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     cursor: default;
     border-radius: 6px;
-    padding: 0.875rem;
+    padding: 1rem;
+    border: 2px solid color-mix(in srgb, var(--rarity-border) 70%, transparent);
+    background: rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
     position: relative;
     overflow: visible;
@@ -106,38 +113,85 @@
 }
 
 .a-list-component.unlocked {
-    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
-    background-color: rgba(0, 0, 0, 0.1);
+    border-color: color-mix(in srgb, var(--rarity-border) 92%, white 8%);
+    box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.45);
 }
 
 .a-list-component.locked {
+    border-color: color-mix(in srgb, var(--rarity-border) 38%, #64748b 62%);
     background: rgba(149, 165, 166, 0.1);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    border: 2px solid rgba(149, 165, 166, 0.2);
-    filter: grayscale(0.7);
-    opacity: 0.6;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
+    opacity: 0.82;
+}
+
+.achievement-lock-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ecf3ff;
+    border: 1px solid color-mix(in srgb, var(--rarity-border) 62%, #cbd5e1 38%);
+    background: rgba(12, 16, 28, 0.95);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    z-index: 2;
 }
 
 .achievement-icon {
     transition: all 0.3s ease;
-    font-size: clamp(1.1rem, 3vw, 1.4rem);
+    font-size: clamp(1.15rem, 3vw, 1.5rem);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--rarity-border);
+    text-shadow: 0 0 14px color-mix(in srgb, var(--rarity-end) 55%, transparent);
+}
+
+.a-list-component.locked .achievement-icon {
+    color: color-mix(in srgb, var(--rarity-border) 48%, #94a3b8 52%);
+    text-shadow: 0 0 10px color-mix(in srgb, var(--rarity-start) 35%, transparent);
+}
+
+.achievement-icon-shell {
+    width: 42px;
+    height: 42px;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--rarity-border) 75%, white 25%);
+    background: linear-gradient(180deg, var(--rarity-start), var(--rarity-end));
+    box-shadow:
+        inset 0 0 16px rgba(0, 0, 0, 0.3),
+        0 0 16px color-mix(in srgb, var(--rarity-end) 30%, transparent);
     display: flex;
     align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .achievement-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
 }
 
 .achievement-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: flex-start;
+    align-items: flex-start;
     gap: 8px;
+    width: 100%;
+    padding-right: 18px;
+}
+
+.achievement-main {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
     width: 100%;
 }
 
@@ -145,6 +199,7 @@
     color: white;
     font-weight: 700;
     margin: 0;
+    line-height: 1.2;
     word-break: break-word;
     white-space: normal;
 }
@@ -157,16 +212,6 @@
     height: fit-content;
     margin: 0;
     padding: 0;
-}
-
-.achievement-rarity {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.3);
 }
 
 .automatic-badge {
@@ -189,19 +234,26 @@
     }
 
     .a-list-component {
-        min-height: 65px;
-        padding: 0.625rem;
+        min-height: 96px;
+        padding: 0.75rem;
         gap: 0.5rem;
     }
 
-    .achievement-icon {
-        font-size: 1.5rem;
+    .achievement-icon-shell {
+        width: 38px;
+        height: 38px;
+        border-radius: 6px;
     }
 
-    .achievement-status {
-        width: 30px;
-        height: 30px;
-        font-size: 1rem;
+    .achievement-icon {
+        font-size: 1.25rem;
+    }
+
+    .achievement-lock-badge {
+        width: 28px;
+        height: 28px;
+        top: -8px;
+        right: -8px;
     }
 
     .block-container .block {
@@ -225,14 +277,18 @@
     }
 
     .achievement-icon {
-        font-size: 2.25rem;
+        font-size: 1.45rem;
     }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1200px) {}
 
+@media (min-width: 1600px) {}
+
+.a-list-component.unlocked .achievement-icon-shell {
+    filter: saturate(1.18) brightness(1.04);
 }
 
-@media (min-width: 1600px) {
-
+.a-list-component.locked .achievement-icon-shell {
+    filter: saturate(0.62) brightness(0.82);
 }

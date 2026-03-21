@@ -24,14 +24,20 @@ const RecentAchievements = () => {
     setIsAnimated(true);
   }, []);
 
-  const getRarityColor = (rarity) => {
+  const getRarityStyle = (rarity) => {
     switch (rarity) {
-      case 'Common': return '#95a5a6';
-      case 'Uncommon': return '#27ae60';
-      case 'Rare': return '#3498db';
-      case 'Epic': return '#9b59b6';
-      case 'Legendary': return '#f39c12';
-      default: return '#95a5a6';
+      case 'Common':
+        return { start: '#4a2b12', end: '#c67b34', border: '#d69557' };
+      case 'Uncommon':
+        return { start: '#3e4a59', end: '#9caec2', border: '#c7d3df' };
+      case 'Rare':
+        return { start: '#6b4f09', end: '#f4c542', border: '#ffe083' };
+      case 'Epic':
+        return { start: '#120f1f', end: '#46356f', border: '#7f68b0' };
+      case 'Legendary':
+        return { start: '#0a3142', end: '#6de3ff', border: '#aef2ff' };
+      default:
+        return { start: '#4a2b12', end: '#c67b34', border: '#d69557' };
     }
   };
 
@@ -62,42 +68,49 @@ const RecentAchievements = () => {
       </article>
 
       <article className="achievements-list">
-        {sortedAchievements.map((achievement, index) => (
-          <div
-            key={achievement.id}
-            className={`a-list-component ${achievement.unlocked ? 'unlocked' : 'locked'} ${isAnimated ? 'animate-in' : ''}`}
-            style={{ animationDelay: `${index * 0.1}s` }}
-          >
+        {sortedAchievements.map((achievement, index) => {
+          const rarityStyle = getRarityStyle(achievement.rarity);
 
-            <div className="achievement-content">
+          return (
+            <div
+              key={achievement.id}
+              className={`a-list-component ${achievement.unlocked ? 'unlocked' : 'locked'} ${isAnimated ? 'animate-in' : ''}`}
+              style={{
+                animationDelay: `${index * 0.1}s`,
+                '--rarity-start': rarityStyle.start,
+                '--rarity-end': rarityStyle.end,
+                '--rarity-border': rarityStyle.border,
+              }}
+            >
 
-              <div className="achievement-header">
-                <div className='flex gap-2 align-center'>
-                  <div className="achievement-icon" style={{ color: achievement.unlocked ? achievement.color : '#95a5a6' }}>
-                    {achievement.icon}
+              {!achievement.unlocked && (
+                <div className="achievement-lock-badge" aria-label="Locked achievement" title="Locked achievement">
+                  <FaLock />
+                </div>
+              )}
+
+              <div className="achievement-content">
+
+                <div className="achievement-header">
+                  <div className='achievement-main'>
+                    <div className="achievement-icon-shell">
+                      <div className="achievement-icon">
+                        {achievement.icon}
+                      </div>
+                    </div>
+                    <h3>{achievement.title}</h3>
                   </div>
-                  <h3>{achievement.title}</h3>
                 </div>
 
-                <div className={`flex gap-3 items-center`}>
-                  <span className="w-[90px] text-center achievement-rarity" style={{ color: getRarityColor(achievement.rarity) }}>
-                  {achievement.rarity}
-                  </span>
-
-                  <div className={`content-center m-auto achievement-status ${achievement.unlocked ? '' : 'locked-badge'}`}>
-                    {achievement.unlocked ? '' : <FaLock className={`text-[var(--mid-main-secondary)]`}/>}
-                  </div>
-                </div>
+                <p>{achievement.description}</p>
+                {achievement.automatic && achievement.unlocked && (
+                  <span className="automatic-badge">Auto-Unlocked</span>
+                )}
               </div>
 
-              <p>{achievement.description}</p>
-              {achievement.automatic && achievement.unlocked && (
-                <span className="automatic-badge">Auto-Unlocked</span>
-              )}
             </div>
-
-          </div>
-        ))}
+          );
+        })}
       </article>
     </section>
   );
