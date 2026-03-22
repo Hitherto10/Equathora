@@ -270,7 +270,6 @@ const Learn = () => {
       //setLoading(true);
       try {
         const problemId = null;
-        const groupId = gradeFilter ? gradeFilter.split(',') : null;
         const slug = null;
         const difficulties = difficultyFilter ? difficultyFilter.split(',') : null;
         const topics = topicFilter ? topicFilter.split(',') : null;
@@ -284,7 +283,6 @@ const Learn = () => {
           currentPage,
           pageSize,
           problemId,
-          groupId,
           slug,
           difficulties,
           topics,
