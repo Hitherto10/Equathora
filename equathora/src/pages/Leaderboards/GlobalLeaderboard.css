@@ -32,6 +32,58 @@
     font-weight: 400;
 }
 
+.leaderboard-filters {
+    margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.leaderboard-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--french-gray);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.leaderboard-filter:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(0, 217, 255, 0.2);
+}
+
+.leaderboard-filter.search-filter {
+    min-width: 180px;
+}
+
+.filter-icon {
+    color: var(--secondary-color);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.leaderboard-filter-input,
+.leaderboard-filter-select {
+    background: transparent;
+    border: none;
+    color: var(--secondary-color);
+    font-size: 0.82rem;
+    font-family: 'Sansation', sans-serif;
+    outline: none;
+}
+
+.leaderboard-filter-input {
+    min-width: 120px;
+}
+
+.leaderboard-filter-select option {
+    color: var(--secondary-color);
+    background: var(--main-color);
+}
+
 .leaderboard-list {
     display: flex;
     flex-direction: column;
@@ -47,17 +99,17 @@
 }
 
 .leaderboard-list::-webkit-scrollbar-track {
-    background: linear-gradient(360deg, var(--accent-color), var(--dark-accent-color));
+    background: transparent;
     border-radius: 10px;
 }
 
 .leaderboard-list::-webkit-scrollbar-thumb {
-    background: linear-gradient(360deg, var(--accent-color), var(--dark-accent-color));
+    background: rgba(0, 5, 44, 0.32);
     border-radius: 10px;
 }
 
 .leaderboard-list::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(360deg, var(--accent-color), var(--dark-accent-color));
+    background: rgba(0, 5, 44, 0.46);
 }
 
 .leaderboard-card {
@@ -86,32 +138,40 @@
 }
 
 .rank-badge {
-    font-size: clamp(1.1rem, 3vw, 1.3rem);
+    font-size: clamp(1rem, 2.8vw, 1.2rem);
     font-weight: 700;
-    min-width: 45px;
+    min-width: 58px;
     height: 45px;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.35rem;
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.1);
     color: black;
     flex-shrink: 0;
 }
 
+.rank-badge-icon {
+    font-size: 0.95rem;
+}
+
+.rank-badge-number {
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+
 .rank-gold .rank-badge {
-    background: linear-gradient(135deg, #FFD700, #FFA500);
-    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+    background: linear-gradient(135deg, #6b4f09, #f4c542);
 }
 
 .rank-silver .rank-badge {
-    background: linear-gradient(135deg, #C0C0C0, #808080);
-    box-shadow: 0 4px 15px rgba(192, 192, 192, 0.3);
+    background: linear-gradient(135deg, #3e4a59, #9caec2);
 }
 
 .rank-bronze .rank-badge {
-    background: linear-gradient(135deg, #CD7F32, #8B4513);
-    box-shadow: 0 4px 15px rgba(205, 127, 50, 0.3);
+    background: linear-gradient(135deg, #4a2b12, #c67b34);
 }
 
 .player-info {
@@ -145,7 +205,7 @@
 }
 
 .stat-icon {
-    font-size: 0.9em;
+    font-size: 0.85em;
 }
 
 .player-xp {
@@ -213,7 +273,7 @@
     }
 
     .rank-badge {
-        min-width: 40px;
+        min-width: 52px;
         height: 40px;
     }
 }
@@ -236,7 +296,7 @@
     }
 
     .rank-badge {
-        min-width: 38px;
+        min-width: 48px;
         height: 38px;
         font-size: clamp(1rem, 2.5vw, 1.1rem);
     }
@@ -273,7 +333,7 @@
     }
 
     .rank-badge {
-        min-width: 35px;
+        min-width: 44px;
         height: 35px;
         font-size: 0.95rem;
         border-radius: 6px;
@@ -321,9 +381,22 @@
     }
 
     .rank-badge {
-        min-width: 32px;
+        min-width: 40px;
         height: 32px;
         font-size: 0.9rem;
+    }
+
+    .leaderboard-filters {
+        gap: 0.35rem;
+    }
+
+    .leaderboard-filter {
+        padding: 0.35rem 0.45rem;
+    }
+
+    .leaderboard-filter-input,
+    .leaderboard-filter-select {
+        font-size: 0.75rem;
     }
 
     .player-name {

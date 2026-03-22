@@ -3,6 +3,7 @@ import './GlobalLeaderboard.css';
 import { Link } from 'react-router-dom';
 import { getFriendsLeaderboard, getCurrentUserRank } from '../../lib/leaderboardService';
 import GuestAvatar from '../../assets/images/guestAvatar.png';
+import { FaBullseye, FaChartLine, FaCrown, FaHashtag, FaMedal } from 'react-icons/fa';
 
 const FriendsLeaderboard = () => {
     const [players, setPlayers] = useState([]);
@@ -33,10 +34,9 @@ const FriendsLeaderboard = () => {
     };
 
     const getRankBadge = (rank) => {
-        if (rank === 1) return '🥇';
-        if (rank === 2) return '🥈';
-        if (rank === 3) return '🥉';
-        return `#${rank}`;
+        if (rank === 1) return <FaCrown className="rank-badge-icon" />;
+        if (rank === 2 || rank === 3) return <FaMedal className="rank-badge-icon" />;
+        return <FaHashtag className="rank-badge-icon" />;
     };
 
     const getRankClass = (rank) => {
@@ -109,7 +109,10 @@ const FriendsLeaderboard = () => {
                         to={`/profile/${player.userId}`}
                         className={`leaderboard-card ${getRankClass(player.rank)} ${currentUser && player.userId === currentUser.userId ? 'current-user' : ''}`}
                     >
-                        <div className="rank-badge">{getRankBadge(player.rank)}</div>
+                        <div className="rank-badge">
+                            {getRankBadge(player.rank)}
+                            <span className="rank-badge-number">{player.rank}</span>
+                        </div>
                         <div className="player-avatar-wrapper">
                             <img
                                 src={player.avatarUrl || GuestAvatar}
@@ -121,12 +124,12 @@ const FriendsLeaderboard = () => {
                             <div className="player-name">{player.name}</div>
                             <div className="player-stats">
                                 <span className="stat-item">
-                                    <span className="stat-icon">📊</span>
+                                    <FaChartLine className="stat-icon" />
                                     {player.problemsSolved} solved
                                 </span>
                                 {player.accuracy > 0 && (
                                     <span className="stat-item" style={{ marginLeft: '0.5rem', fontSize: '0.85rem' }}>
-                                        <span className="stat-icon">🎯</span>
+                                        <FaBullseye className="stat-icon" />
                                         {player.accuracy}%
                                     </span>
                                 )}
@@ -147,7 +150,10 @@ const FriendsLeaderboard = () => {
                         to={`/profile/${currentUser.userId}`}
                         className={`leaderboard-card current-user-highlight ${getRankClass(currentUser.rank)}`}
                     >
-                        <div className="rank-badge">{getRankBadge(currentUser.rank)}</div>
+                        <div className="rank-badge">
+                            {getRankBadge(currentUser.rank)}
+                            <span className="rank-badge-number">{currentUser.rank}</span>
+                        </div>
                         <div className="player-avatar-wrapper">
                             <img
                                 src={currentUser.avatarUrl || GuestAvatar}
@@ -159,12 +165,12 @@ const FriendsLeaderboard = () => {
                             <div className="player-name">{currentUser.name}</div>
                             <div className="player-stats">
                                 <span className="stat-item">
-                                    <span className="stat-icon">📊</span>
+                                    <FaChartLine className="stat-icon" />
                                     {currentUser.problemsSolved} solved
                                 </span>
                                 {currentUser.accuracy > 0 && (
                                     <span className="stat-item" style={{ marginLeft: '0.5rem', fontSize: '0.85rem' }}>
-                                        <span className="stat-icon">🎯</span>
+                                        <FaBullseye className="stat-icon" />
                                         {currentUser.accuracy}%
                                     </span>
                                 )}
