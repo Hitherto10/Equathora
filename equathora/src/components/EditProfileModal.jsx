@@ -245,15 +245,15 @@ const EditProfileModal = ({ isOpen, onClose, userData, onSave }) => {
                                     className="hidden"
                                 />
                             </div>
-                            <p className="text-sm text-gray-500">Click to change your profile picture (Max 5MB)</p>
+                            <p className="text-sm text-gray-500">Click to change your profile picture <strong>(Max 5 MB)</strong></p>
                         </div>
 
                         {/* Form Fields */}
                         <div className="space-y-4">
                             {/* Full Name */}
                             <div>
-                                <label className="block text-sm font-semibold text-[var(--secondary-color)] pb-2">
-                                    <FaUser className="inline pr-2" />
+                                <label className="flex text-sm font-semibold text-[var(--secondary-color)] pb-2 items-end">
+                                    <FaUser className="h-5 w-5 pr-2" />
                                     Full Name *
                                 </label>
                                 <input
@@ -269,8 +269,8 @@ const EditProfileModal = ({ isOpen, onClose, userData, onSave }) => {
 
                             {/* Username */}
                             <div>
-                                <label className="block text-sm font-semibold text-[var(--secondary-color)] pb-2">
-                                    <FaUser className="inline pr-2" />
+                                <label className="flex text-sm font-semibold text-[var(--secondary-color)] py-2 items-end">
+                                    <FaUser className="h-5 w-5 pr-2" />
                                     Username *
                                 </label>
                                 <input
@@ -283,12 +283,12 @@ const EditProfileModal = ({ isOpen, onClose, userData, onSave }) => {
                                     className="text-black w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent transition-all"
                                     placeholder="username_123"
                                 />
-                                <p className="text-xs text-gray-500 pt-1">3-20 characters, letters, numbers, and underscores only</p>
+                                <p className="text-xs text-gray-500 pt-2">3-20 characters, letters, numbers, and underscores only</p>
                             </div>
 
                             {/* Bio */}
                             <div>
-                                <label className="block text-sm font-semibold text-[var(--secondary-color)] pb-2">
+                                <label className="block text-sm font-semibold text-[var(--secondary-color)] py-2">
                                     Bio
                                 </label>
                                 <textarea
@@ -305,8 +305,8 @@ const EditProfileModal = ({ isOpen, onClose, userData, onSave }) => {
 
                             {/* Location */}
                             <div>
-                                <label className="block text-sm font-semibold text-[var(--secondary-color)] pb-2">
-                                    <FaGlobeAmericas className="inline pr-2" />
+                                <label className="flex text-sm font-semibold text-[var(--secondary-color)] pb-2">
+                                    <FaGlobeAmericas className="h-5 w-5 pr-2" />
                                     Location
                                 </label>
                                 <input
@@ -328,14 +328,14 @@ const EditProfileModal = ({ isOpen, onClose, userData, onSave }) => {
                                 type="button"
                                 onClick={onClose}
                                 disabled={isLoading}
-                                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-md hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-md hover:bg-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-95"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="flex-1 px-6 py-3 bg-[linear-gradient(360deg,var(--accent-color),var(--dark-accent-color))] text-white font-semibold rounded-md hover:bg-[var(--dark-accent-color)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                                className="flex-1 px-6 py-3 !bg-[linear-gradient(360deg,var(--accent-color),var(--dark-accent-color))] text-white font-semibold rounded-md hover:!bg-[linear-gradient(360deg,var(--dark-accent-color),var(--dark-accent-color))] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                             >
                                 {isLoading ? (
                                     <>
