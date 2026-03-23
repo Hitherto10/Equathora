@@ -65,66 +65,117 @@ export async function getProblems(
     sort = null,
     progress = null,
     status = null
- ) {
+) {
+    const buildCsv = (value) => Array.isArray(value) && value.length > 0 ? value.join(',') : null;
+
     try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const apiBase = import.meta.env.VITE_API_URL || '';
+        const params = new URLSearchParams();
 
-        let completed = null;
+        params.set('page', String(page ?? 1));
+        params.set('pageSize', String(pageSize ?? 50));
 
-        if (status && status.includes('completed')) {
-            completed = true;
-        } else if (status && status.includes('notstarted') || progress && progress.includes('in-progress')) {
-            completed = false;
-        }
+        if (searchTerm) params.set('q', searchTerm);
+        if (sort) params.set('sort', sort);
 
-        const { data, error } = await supabase.rpc("get_problems_with_facets", {
-              p_user_id: session?.user?.id,
-              p_page: page,
-              p_page_size: pageSize,
-              p_problem_id: problemId,
-              p_slug: slug,
-              p_difficulties: difficulties,
-              p_topics: topics,
-              p_grades: grades,
-              p_search_term: searchTerm,
-              p_sort: sort,
-              p_progress: progress,
-              p_completed: completed,
+        const difficultyCsv = buildCsv(difficulties);
+        const topicCsv = buildCsv(topics);
+        const gradeCsv = buildCsv(grades);
+        const statusCsv = buildCsv(status);
+        const progressCsv = buildCsv(progress);
+
+        if (difficultyCsv) params.set('difficulty', difficultyCsv);
+        if (topicCsv) params.set('topic', topicCsv);
+        if (gradeCsv) params.set('grade', gradeCsv);
+        if (statusCsv) params.set('status', statusCsv);
+        if (progressCsv) params.set('progress', progressCsv);
+
+        if (problemId) params.set('problemId', String(problemId));
+        if (slug) params.set('slug', slug);
+
+        const backendResponse = await fetch(`${apiBase}/api/problems?${params.toString()}`, {
+            method: 'GET',
+            credentials: 'include'
         });
 
-        if (error) throw error;
-        const result = {
-            data: data?.data || [],
-            count: data?.count || 0,
-            page: data?.page ?? page,
-            pageSize: data?.pageSize ?? pageSize,
-            facets: data?.facets || {
-                difficulty: {},
-                topic: {},
-                grade: {},
-                progress: {},
-            },
-        };
-       
-        return result;
-    } catch (err) {
-        console.error("getProblems error:", err);
+        if (!backendResponse.ok) {
+            throw new Error(`Backend problems endpoint failed with ${backendResponse.status}`);
+        }
+
+        const backendData = await backendResponse.json();
         return {
-            data: [],
-            count: 0,
-            page,
-            pageSize,
-            facets: {
+            data: backendData?.data || [],
+            count: backendData?.count || 0,
+            page: backendData?.page ?? page,
+            pageSize: backendData?.pageSize ?? pageSize,
+            facets: backendData?.facets || {
                 difficulty: {},
                 topic: {},
                 grade: {},
                 progress: {},
             },
         };
+    } catch (backendError) {
+        console.warn("getProblems backend fetch failed, falling back to Supabase RPC:", backendError);
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+
+            let completed = null;
+
+            if (status && status.includes('completed')) {
+                completed = true;
+            } else if (status && status.includes('notstarted') || progress && progress.includes('in-progress')) {
+                completed = false;
+            }
+
+            const { data, error } = await supabase.rpc("get_problems_with_facets", {
+                p_user_id: session?.user?.id,
+                p_page: page,
+                p_page_size: pageSize,
+                p_problem_id: problemId,
+                p_slug: slug,
+                p_difficulties: difficulties,
+                p_topics: topics,
+                p_grades: grades,
+                p_search_term: searchTerm,
+                p_sort: sort,
+                p_progress: progress,
+                p_completed: completed,
+            });
+
+            if (error) throw error;
+            return {
+                data: data?.data || [],
+                count: data?.count || 0,
+                page: data?.page ?? page,
+                pageSize: data?.pageSize ?? pageSize,
+                facets: data?.facets || {
+                    difficulty: {},
+                    topic: {},
+                    grade: {},
+                    progress: {},
+                },
+            };
+        } catch (err) {
+            console.error("getProblems error:", err);
+            return {
+                data: [],
+                count: 0,
+                page,
+                pageSize,
+                facets: {
+                    difficulty: {},
+                    topic: {},
+                    grade: {},
+                    progress: {},
+                },
+            };
+        }
     }
 }
 
-        
+
 /**
  * Get all active problems
  */

@@ -270,22 +270,288 @@ app.MapGet("/mathproblem", () =>
 .WithName("GetMathProblem");
 
 
-app.MapGet("/api/problems", async (AppDbContext db) =>
+app.MapGet("/api/problems", async (
+    AppDbContext db,
+    ClaimsPrincipal user,
+    int? page,
+    int? pageSize,
+    int? problemId,
+    string? slug,
+    string? difficulty,
+    string? topic,
+    string? grade,
+    string? status,
+    string? progress,
+    string? q,
+    string? sort) =>
 {
-    var problems = await db.Problems
-        .Where(p => p.IsActive)
+    var currentPage = Math.Max(1, page ?? 1);
+    var currentPageSize = Math.Clamp(pageSize ?? 50, 1, 100);
+
+    static string[] ParseCsv(string? input) =>
+        string.IsNullOrWhiteSpace(input)
+            ? Array.Empty<string>()
+            : input.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+    var difficultyFilters = ParseCsv(difficulty);
+    var topicFilters = ParseCsv(topic);
+    var gradeFilters = ParseCsv(grade);
+    var statusFilters = ParseCsv(status);
+    var progressFilters = ParseCsv(progress);
+
+    var baseQuery = db.Problems
+        .AsNoTracking()
+        .Where(p => p.IsActive);
+
+    if (problemId.HasValue)
+    {
+        baseQuery = baseQuery.Where(p => p.Id == problemId.Value);
+    }
+
+    if (!string.IsNullOrWhiteSpace(slug))
+    {
+        var slugFilter = slug.Trim();
+        baseQuery = baseQuery.Where(p => p.Slug == slugFilter);
+    }
+
+    if (difficultyFilters.Length > 0)
+    {
+        baseQuery = baseQuery.Where(p => difficultyFilters.Contains(p.Difficulty));
+    }
+
+    if (topicFilters.Length > 0)
+    {
+        baseQuery = baseQuery.Where(p => p.Topic != null && topicFilters.Contains(p.Topic));
+    }
+
+    if (gradeFilters.Length > 0)
+    {
+        var gradeGroupIds = gradeFilters
+            .SelectMany(g => g switch
+            {
+                "8" => new[] { 1 },
+                "9" => new[] { 2, 3 },
+                "10" => new[] { 4, 5 },
+                "11" => new[] { 6, 7 },
+                "12" => new[] { 8, 9, 10 },
+                _ => Array.Empty<int>()
+            })
+            .Distinct()
+            .ToArray();
+
+        if (gradeGroupIds.Length == 0)
+        {
+            return Results.Ok(new
+            {
+                data = Array.Empty<object>(),
+                count = 0,
+                page = currentPage,
+                pageSize = currentPageSize,
+                facets = new
+                {
+                    difficulty = new Dictionary<string, int>(),
+                    topic = new Dictionary<string, int>(),
+                    grade = new Dictionary<string, int>(),
+                    progress = new Dictionary<string, int>()
+                }
+            });
+        }
+
+        baseQuery = baseQuery.Where(p => gradeGroupIds.Contains(p.GroupId));
+    }
+
+    if (!string.IsNullOrWhiteSpace(q))
+    {
+        var term = q.Trim();
+        baseQuery = baseQuery.Where(p =>
+            EF.Functions.ILike(p.Title, $"%{term}%") ||
+            EF.Functions.ILike(p.Description, $"%{term}%") ||
+            (p.Topic != null && EF.Functions.ILike(p.Topic, $"%{term}%")));
+    }
+
+    var filteredSnapshot = await baseQuery
         .Select(p => new
         {
             p.Id,
+            p.GroupId,
             p.Title,
             p.Description,
             p.Topic,
             p.Difficulty,
-            p.Slug
+            p.IsPremium,
+            p.Slug,
+            p.DisplayOrder,
+            p.CreatedAt
         })
         .ToListAsync();
 
-    return Results.Ok(problems);
+    Guid? userId = null;
+    var sub = user.FindFirstValue("sub");
+    if (Guid.TryParse(sub, out var parsedUserId))
+    {
+        userId = parsedUserId;
+    }
+
+    HashSet<int> completedSet = new();
+    HashSet<int> inProgressSet = new();
+
+    if (userId.HasValue)
+    {
+        var attemptRows = await db.Attempts
+            .AsNoTracking()
+            .Where(a => a.UserId == userId.Value)
+            .GroupBy(a => a.ProblemId)
+            .Select(g => new
+            {
+                ProblemId = g.Key,
+                HasCorrect = g.Any(x => x.IsCorrect),
+                HasAttempt = g.Any()
+            })
+            .ToListAsync();
+
+        completedSet = attemptRows
+            .Where(a => a.HasCorrect)
+            .Select(a => a.ProblemId)
+            .ToHashSet();
+
+        inProgressSet = attemptRows
+            .Where(a => !a.HasCorrect && a.HasAttempt)
+            .Select(a => a.ProblemId)
+            .ToHashSet();
+    }
+
+    bool IncludeByProgressState(int problemId)
+    {
+        var isCompleted = completedSet.Contains(problemId);
+        var isInProgress = inProgressSet.Contains(problemId);
+
+        if (statusFilters.Length > 0)
+        {
+            var statusMatch = statusFilters.Any(s =>
+                (s.Equals("completed", StringComparison.OrdinalIgnoreCase) && isCompleted) ||
+                (s.Equals("notstarted", StringComparison.OrdinalIgnoreCase) && !isCompleted && !isInProgress));
+
+            if (!statusMatch) return false;
+        }
+
+        if (progressFilters.Length > 0)
+        {
+            var progressMatch = progressFilters.Any(s =>
+                (s.Equals("completed", StringComparison.OrdinalIgnoreCase) && isCompleted) ||
+                (s.Equals("in-progress", StringComparison.OrdinalIgnoreCase) && isInProgress) ||
+                (s.Equals("not-started", StringComparison.OrdinalIgnoreCase) && !isCompleted && !isInProgress));
+
+            if (!progressMatch) return false;
+        }
+
+        return true;
+    }
+
+    var filteredWithProgress = filteredSnapshot
+        .Where(p => IncludeByProgressState(p.Id))
+        .Select(p => new
+        {
+            p.Id,
+            p.GroupId,
+            p.Title,
+            p.Description,
+            p.Topic,
+            p.Difficulty,
+            p.IsPremium,
+            p.Slug,
+            p.DisplayOrder,
+            p.CreatedAt,
+            Completed = completedSet.Contains(p.Id),
+            InProgress = inProgressSet.Contains(p.Id)
+        })
+        .ToList();
+
+    var difficultyFacet = filteredWithProgress
+        .GroupBy(p => p.Difficulty)
+        .ToDictionary(g => g.Key, g => g.Count());
+
+    var topicFacet = filteredWithProgress
+        .Where(p => !string.IsNullOrWhiteSpace(p.Topic))
+        .GroupBy(p => p.Topic!)
+        .ToDictionary(g => g.Key, g => g.Count());
+
+    string? GradeFromGroupId(int groupId) => groupId switch
+    {
+        1 => "8",
+        2 or 3 => "9",
+        4 or 5 => "10",
+        6 or 7 => "11",
+        8 or 9 or 10 => "12",
+        _ => null
+    };
+
+    var gradeFacet = filteredWithProgress
+        .Select(p => GradeFromGroupId(p.GroupId))
+        .Where(g => g != null)
+        .GroupBy(g => g!)
+        .ToDictionary(g => g.Key, g => g.Count());
+
+    var progressFacet = new Dictionary<string, int>
+    {
+        ["completed"] = filteredWithProgress.Count(p => p.Completed),
+        ["in-progress"] = filteredWithProgress.Count(p => p.InProgress),
+        ["not-started"] = filteredWithProgress.Count(p => !p.Completed && !p.InProgress)
+    };
+
+    var ordered = (sort ?? string.Empty).ToLowerInvariant() switch
+    {
+        "difficulty_asc" => filteredWithProgress
+            .OrderBy(p => p.Difficulty == "Easy" ? 0 : p.Difficulty == "Medium" ? 1 : 2)
+            .ThenBy(p => p.GroupId)
+            .ThenBy(p => p.DisplayOrder)
+            .ThenBy(p => p.Id),
+        "difficulty_desc" => filteredWithProgress
+            .OrderByDescending(p => p.Difficulty == "Hard" ? 2 : p.Difficulty == "Medium" ? 1 : 0)
+            .ThenBy(p => p.GroupId)
+            .ThenBy(p => p.DisplayOrder)
+            .ThenBy(p => p.Id),
+        "newest" => filteredWithProgress
+            .OrderByDescending(p => p.CreatedAt)
+            .ThenByDescending(p => p.Id),
+        _ => filteredWithProgress
+            .OrderBy(p => p.GroupId)
+            .ThenBy(p => p.DisplayOrder)
+            .ThenBy(p => p.Id)
+    };
+
+    var totalCount = filteredWithProgress.Count;
+    var pagedData = ordered
+        .Skip((currentPage - 1) * currentPageSize)
+        .Take(currentPageSize)
+        .Select(p => new
+        {
+            id = p.Id,
+            group_id = p.GroupId,
+            title = p.Title,
+            description = p.Description,
+            topic = p.Topic,
+            difficulty = p.Difficulty,
+            premium = p.IsPremium,
+            slug = p.Slug,
+            completed = p.Completed,
+            inProgress = p.InProgress
+        })
+        .ToList();
+
+    return Results.Ok(new
+    {
+        data = pagedData,
+        count = totalCount,
+        page = currentPage,
+        pageSize = currentPageSize,
+        facets = new
+        {
+            difficulty = difficultyFacet,
+            topic = topicFacet,
+            grade = gradeFacet,
+            progress = progressFacet
+        }
+    });
 });
 
 app.MapPost("/api/attempts", [Authorize] async (
