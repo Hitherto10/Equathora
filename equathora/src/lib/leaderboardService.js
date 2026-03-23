@@ -9,6 +9,84 @@ import { supabase } from './supabaseClient';
 // XP CALCULATION SYSTEM
 // ============================================================================
 
+let activeProblemIdsCache = null;
+let activeProblemIdsCacheTime = 0;
+const ACTIVE_PROBLEM_CACHE_DURATION = 5 * 60 * 1000;
+
+function normalizeProblemId(problemId) {
+    if (problemId === null || problemId === undefined) return '';
+
+    if (typeof problemId === 'string' && problemId.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(problemId);
+            return String(parsed?.problemId ?? parsed?.id ?? '');
+        } catch {
+            return '';
+        }
+    }
+
+    return String(problemId);
+}
+
+async function getActiveProblemIdSet() {
+    const now = Date.now();
+    if (activeProblemIdsCache && now - activeProblemIdsCacheTime < ACTIVE_PROBLEM_CACHE_DURATION) {
+        return activeProblemIdsCache;
+    }
+
+    const { data, error } = await supabase
+        .from('problems')
+        .select('id')
+        .eq('is_active', true);
+
+    if (error) {
+        console.warn('Unable to fetch active problems for solved-count normalization:', error.message);
+        activeProblemIdsCache = null;
+        activeProblemIdsCacheTime = 0;
+        return null;
+    }
+
+    activeProblemIdsCache = new Set((data || []).map(row => String(row.id)));
+    activeProblemIdsCacheTime = now;
+    return activeProblemIdsCache;
+}
+
+async function getSolvedCountMapFromCompletedProblems(userIds = []) {
+    if (!userIds.length) return {};
+
+    const activeProblemIds = await getActiveProblemIdSet();
+
+    const { data, error } = await supabase
+        .from('user_completed_problems')
+        .select('user_id, problem_id')
+        .in('user_id', userIds);
+
+    if (error) {
+        console.warn('Unable to fetch user_completed_problems for solved counts:', error.message);
+        return {};
+    }
+
+    const solvedSetByUser = {};
+
+    (data || []).forEach(row => {
+        const userId = row.user_id;
+        const problemId = normalizeProblemId(row.problem_id);
+
+        if (!userId || !problemId) return;
+        if (activeProblemIds && !activeProblemIds.has(problemId)) return;
+
+        if (!solvedSetByUser[userId]) {
+            solvedSetByUser[userId] = new Set();
+        }
+
+        solvedSetByUser[userId].add(problemId);
+    });
+
+    return Object.fromEntries(
+        Object.entries(solvedSetByUser).map(([userId, problemSet]) => [userId, problemSet.size])
+    );
+}
+
 /**
  * Calculate total XP for a user based on their progress
  * XP Formula:
@@ -221,6 +299,7 @@ async function computeLeaderboardFromTables(limit = 100) {
         });
 
         const profileMap = await getProfileMap(allUserIds);
+        const solvedCountMap = await getSolvedCountMapFromCompletedProblems(allUserIds);
 
         // Build leaderboard entry for EVERY user
         const leaderboardData = allUserIds.map((userId) => {
@@ -236,9 +315,9 @@ async function computeLeaderboardFromTables(limit = 100) {
 
             const xpData = calculateUserXP(progress, { current_streak: streakMap[userId] || 0 });
             const profile = profileMap[userId] || {};
-            const solvedCount = Array.isArray(progress.solved_problems)
+            const solvedCount = solvedCountMap[userId] ?? (Array.isArray(progress.solved_problems)
                 ? progress.solved_problems.length
-                : 0;
+                : 0);
 
             // Accuracy = (total_attempts - wrong_submissions) / total_attempts
             // This counts all correct submissions including re-solves
@@ -301,13 +380,14 @@ async function computeLeaderboardFromProgressOnly(limit = 100) {
 
         const userIds = progressData.map(p => p.user_id);
         const profileMap = await getProfileMap(userIds);
+        const solvedCountMap = await getSolvedCountMapFromCompletedProblems(userIds);
 
         const leaderboardData = progressData.map((progress) => {
             const xpData = calculateUserXP(progress, { current_streak: streakMap[progress.user_id] });
             const profile = profileMap[progress.user_id] || {};
-            const solvedCount = Array.isArray(progress.solved_problems)
+            const solvedCount = solvedCountMap[progress.user_id] ?? (Array.isArray(progress.solved_problems)
                 ? progress.solved_problems.length
-                : 0;
+                : 0);
 
             // Accuracy = (total_attempts - wrong_submissions) / total_attempts
             const correctSubmissions = progress.total_attempts - (progress.wrong_submissions || 0);
@@ -397,18 +477,14 @@ export async function getGlobalLeaderboard(limit = 100) {
             return acc;
         }, {});
 
-        // Count solved problems from user_completed_problems for users without progress entry
-        const completedCountMap = {};
-        (completedData || []).forEach(row => {
-            completedCountMap[row.user_id] = (completedCountMap[row.user_id] || 0) + 1;
-        });
+        const solvedCountMap = await getSolvedCountMapFromCompletedProblems(allIds);
 
         // Build combined entries, preferring view data but filling gaps with progress or completed counts
         const combined = allIds.map((userId) => {
             const viewRow = rows.find(r => r.user_id === userId);
             const progress = progressMap[userId];
             const profile = profileMap[userId] || {};
-            const completedCount = completedCountMap[userId] || 0;
+            const completedCount = solvedCountMap[userId] || 0;
 
             const problemsFromView = typeof viewRow?.problems_solved_count === 'number'
                 ? viewRow.problems_solved_count
@@ -416,10 +492,11 @@ export async function getGlobalLeaderboard(limit = 100) {
                     ? viewRow.solved_problems.length
                     : 0;
 
-            // Use progress solved_problems, then view, then completed count from user_completed_problems
-            const solvedCount = Array.isArray(progress?.solved_problems)
+            // Canonical solved source: user_completed_problems (normalized + deduped + active-only)
+            // Fallback to progress/view only if canonical source has no rows for this user.
+            const solvedCount = completedCount || (Array.isArray(progress?.solved_problems)
                 ? progress.solved_problems.length
-                : (problemsFromView || completedCount);
+                : problemsFromView);
 
             const shouldRecompute = (!viewRow?.total_xp && progress) || (problemsFromView === 0 && progress && Array.isArray(progress.solved_problems));
             const xpData = shouldRecompute ? calculateUserXP(progress, { current_streak: streakMap[userId] }) : null;
@@ -495,8 +572,12 @@ export async function getCurrentUserRank() {
 
         const profileMap = await getProfileMap([session.user.id]);
         const profile = profileMap[session.user.id] || {};
+        const solvedCountMap = await getSolvedCountMapFromCompletedProblems([session.user.id]);
+        const canonicalSolvedCount = solvedCountMap[session.user.id];
 
-        const problemsSolved = typeof data.problems_solved_count === 'number'
+        const problemsSolved = typeof canonicalSolvedCount === 'number'
+            ? canonicalSolvedCount
+            : typeof data.problems_solved_count === 'number'
             ? data.problems_solved_count
             : Array.isArray(data.solved_problems)
                 ? data.solved_problems.length
@@ -555,13 +636,16 @@ export async function getFriendsLeaderboard() {
         }
 
         const profileMap = await getProfileMap(targetIds);
+        const solvedCountMap = await getSolvedCountMapFromCompletedProblems(targetIds);
 
         return (data || []).map((row, index) => ({
             userId: row.user_id,
             name: (profileMap[row.user_id]?.name) || `Student-${String(row.user_id).slice(0, 6)}`,
             avatarUrl: profileMap[row.user_id]?.avatarUrl || '',
             xp: row.total_xp || 0,
-            problemsSolved: typeof row.problems_solved_count === 'number' ? row.problems_solved_count : 0,
+            problemsSolved: typeof solvedCountMap[row.user_id] === 'number'
+                ? solvedCountMap[row.user_id]
+                : (typeof row.problems_solved_count === 'number' ? row.problems_solved_count : 0),
             accuracy: row.accuracy_percentage || 0,
             reputation: row.reputation || 0,
             currentStreak: row.current_streak || 0,
@@ -605,7 +689,7 @@ export async function getRecentTopSolvers(days = 7, limit = 50) {
 
         const { data, error } = await supabase
             .from('user_completed_problems')
-            .select('user_id, completed_at')
+            .select('user_id, problem_id, completed_at')
             .gte('completed_at', since.toISOString());
 
         if (error) {
@@ -613,11 +697,26 @@ export async function getRecentTopSolvers(days = 7, limit = 50) {
             return [];
         }
 
-        const counts = {};
+        const activeProblemIds = await getActiveProblemIdSet();
+        const solvedSetByUser = {};
+
         (data || []).forEach(row => {
             const uid = row.user_id;
-            counts[uid] = (counts[uid] || 0) + 1;
+            const normalizedProblemId = normalizeProblemId(row.problem_id);
+
+            if (!uid || !normalizedProblemId) return;
+            if (activeProblemIds && !activeProblemIds.has(normalizedProblemId)) return;
+
+            if (!solvedSetByUser[uid]) {
+                solvedSetByUser[uid] = new Set();
+            }
+
+            solvedSetByUser[uid].add(normalizedProblemId);
         });
+
+        const counts = Object.fromEntries(
+            Object.entries(solvedSetByUser).map(([uid, problemSet]) => [uid, problemSet.size])
+        );
 
         const userIds = Object.keys(counts);
         if (!userIds.length) return [];
