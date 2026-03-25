@@ -53,6 +53,7 @@ const Tracks = lazy(() => import("./pages/Tracks"));
 const Feedback = lazy(() => import("./pages/Feedback"));
 const GetStarted = lazy(() => import("./pages/GetStarted"));
 const Waitlist = lazy(() => import("./pages/Waitlist"));
+const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
 
 function HomeRoute() {
   const { loading, isAuth } = useAuth();
@@ -100,7 +101,7 @@ function PageTitleUpdater() {
       '/pageNotFound': '404 - Page Not Found - Equathora',
       '/blog': 'Blog - Equathora',
       '/blogs': 'All Posts - Equathora',
-
+      '/adminDashboard': 'Admin Dashboard - Equathora',
     };
 
     const matchedRoute = Object.keys(pageTitles).find(route =>
@@ -201,6 +202,7 @@ export default function App() {
             <Route path="/tracks" element={<ProtectedRoute><Tracks /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            {/* <Route path="/adminDashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>}></Route> */}
             {/* <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} /> */}
 
 
