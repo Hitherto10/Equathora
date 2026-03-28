@@ -8,10 +8,12 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import OverflowChecker from "./pages/OverflowChecker";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 import LoadingSpinner from "./components/LoadingSpinner";
 import CookieConsent from "./components/CookieConsent";
 import { supabase } from "./lib/supabaseClient";
 import { useAuth } from "./hooks/useAuth";
+import { trackDailyActivity } from "./lib/activityTrackingService";
 
 const Landing = lazy(() => import("./pages/Landing"));
 const Login = lazy(() => import("./pages/Login"));
@@ -116,6 +118,7 @@ function PageTitleUpdater() {
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Clean up old localStorage data to prevent conflicts with database
   useEffect(() => {
@@ -162,6 +165,10 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  useEffect(() => {
+    void trackDailyActivity();
+  }, [location.pathname]);
+
 
 
   return (
@@ -202,7 +209,7 @@ export default function App() {
             <Route path="/tracks" element={<ProtectedRoute><Tracks /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-            <Route path="/adminDashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>}></Route>
+            <Route path="/adminDashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>}></Route>
             {/* <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} /> */}
 
 

@@ -49,12 +49,14 @@ const getLowResAvatarUrl = (avatarUrl) => {
 };
 
 const Navbar = () => {
+  const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || 'halilizaim@gmail.com').toLowerCase();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dailyProblemSlug, setDailyProblemSlug] = useState('');
   const [currentStreak, setCurrentStreak] = useState(0);
   const [profileAvatarSrc, setProfileAvatarSrc] = useState(GuestAvatar);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [currentUserEmail, setCurrentUserEmail] = useState('');
 
   useEffect(() => {
     const loadDailyProblem = async () => {
@@ -73,6 +75,8 @@ const Navbar = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
+
+        setCurrentUserEmail((session.user?.email || '').toLowerCase());
 
         const metadata = session.user?.user_metadata || {};
         const avatarUrl = metadata.avatar_url || metadata.picture || metadata.image || metadata.photo_url || '';
@@ -269,6 +273,14 @@ const Navbar = () => {
       description: "Manage your account and preferences",
       image: Settings
     },
+    ...(currentUserEmail === ADMIN_EMAIL
+      ? [{
+        to: '/adminDashboard',
+        text: "Admin Dashboard",
+        description: "Open admin tools and analytics",
+        image: Teacher
+      }]
+      : []),
     {
       text: "Sign Out",
       description: "Securely log out of your account",

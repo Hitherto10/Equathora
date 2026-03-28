@@ -244,6 +244,382 @@ app.MapGet("/api/profile", [Authorize] (ClaimsPrincipal user) =>
     return Results.Ok(new { id, email });
 });
 
+app.MapGet("/api/admin/analytics", async (
+    AppDbContext db,
+    ILogger<Program> logger,
+    string? range,
+    int? weekOffset) =>
+{
+    var normalizedRange = string.Equals(range, "month", StringComparison.OrdinalIgnoreCase) ? "month" : "week";
+    var normalizedWeekOffset = Math.Max(0, weekOffset ?? 0);
+    var days = normalizedRange == "month" ? 30 : 7;
+
+    var now = DateTime.UtcNow;
+    var endExclusive = now.Date.AddDays(1);
+    if (normalizedRange == "week")
+    {
+        endExclusive = endExclusive.AddDays(-(normalizedWeekOffset * 7));
+    }
+
+    var startInclusive = endExclusive.AddDays(-days);
+    var rollingStart = startInclusive.AddDays(-6);
+
+    try
+    {
+
+        var submissionsForRolling = await db.Database.SqlQuery<AnalyticsSubmissionRow>($@"
+        SELECT
+            user_id AS ""UserId"",
+            problem_id AS ""ProblemId"",
+            COALESCE(is_correct, FALSE) AS ""IsCorrect"",
+            COALESCE(time_spent_seconds, 0) AS ""TimeSpentSeconds"",
+            submitted_at AS ""CreatedAt""
+        FROM user_submissions
+        WHERE submitted_at >= {rollingStart} AND submitted_at < {endExclusive}
+    ").ToListAsync();
+
+        var submissionsForRetention = await db.Database.SqlQuery<AnalyticsSubmissionRow>($@"
+        SELECT
+            user_id AS ""UserId"",
+            problem_id AS ""ProblemId"",
+            COALESCE(is_correct, FALSE) AS ""IsCorrect"",
+            COALESCE(time_spent_seconds, 0) AS ""TimeSpentSeconds"",
+            submitted_at AS ""CreatedAt""
+        FROM user_submissions
+        WHERE submitted_at >= {now.AddDays(-180)} AND submitted_at < {endExclusive}
+    ").ToListAsync();
+
+        List<AnalyticsActivityRow> activityForRolling;
+        List<AnalyticsActivityRow> activityForRetention;
+
+        try
+        {
+            activityForRolling = await db.Database.SqlQuery<AnalyticsActivityRow>($@"
+            SELECT user_id AS ""UserId"", created_at AS ""CreatedAt""
+            FROM user_activity_events
+            WHERE created_at >= {rollingStart} AND created_at < {endExclusive}
+        ").ToListAsync();
+
+            activityForRetention = await db.Database.SqlQuery<AnalyticsActivityRow>($@"
+            SELECT user_id AS ""UserId"", created_at AS ""CreatedAt""
+            FROM user_activity_events
+            WHERE created_at >= {now.AddDays(-180)} AND created_at < {endExclusive}
+        ").ToListAsync();
+        }
+        catch
+        {
+            // Backward compatible fallback when the activity table has not been created yet.
+            activityForRolling = submissionsForRolling
+                .Select(s => new AnalyticsActivityRow { UserId = s.UserId, CreatedAt = s.CreatedAt })
+                .ToList();
+            activityForRetention = submissionsForRetention
+                .Select(s => new AnalyticsActivityRow { UserId = s.UserId, CreatedAt = s.CreatedAt })
+                .ToList();
+        }
+
+        List<AnalyticsUserRow> usersInWindow;
+        List<AnalyticsUserRow> usersForRetention;
+
+        try
+        {
+            usersInWindow = await db.Database.SqlQuery<AnalyticsUserRow>($@"
+            SELECT id AS ""UserId"", created_at AS ""CreatedAt""
+            FROM auth.users
+            WHERE created_at >= {startInclusive} AND created_at < {endExclusive}
+        ").ToListAsync();
+
+            usersForRetention = await db.Database.SqlQuery<AnalyticsUserRow>($@"
+            SELECT id AS ""UserId"", created_at AS ""CreatedAt""
+            FROM auth.users
+            WHERE created_at >= {now.AddDays(-180)} AND created_at <= {now.AddDays(-1)}
+        ").ToListAsync();
+        }
+        catch
+        {
+            // Fallback when auth.users is inaccessible: infer user lifecycle from first submission.
+            var firstSeenByUser = submissionsForRetention
+                .GroupBy(s => s.UserId)
+                .Select(g => new AnalyticsUserRow
+                {
+                    UserId = g.Key,
+                    CreatedAt = g.Min(x => x.CreatedAt)
+                })
+                .ToList();
+
+            usersInWindow = firstSeenByUser
+                .Where(u => u.CreatedAt >= startInclusive && u.CreatedAt < endExclusive)
+                .ToList();
+
+            usersForRetention = firstSeenByUser
+                .Where(u => u.CreatedAt >= now.AddDays(-180) && u.CreatedAt <= now.AddDays(-1))
+                .ToList();
+        }
+
+        var problems = await db.Problems
+            .AsNoTracking()
+            .Where(p => p.IsActive)
+            .Select(p => new { p.Id, p.Topic })
+            .ToListAsync();
+
+        var problemsById = problems.ToDictionary(p => p.Id.ToString(), p => p.Topic ?? "Uncategorized");
+
+        var attemptsInWindow = submissionsForRolling
+            .Where(a => a.CreatedAt >= startInclusive && a.CreatedAt < endExclusive)
+            .ToList();
+
+        var attemptDatesByUser = submissionsForRetention
+            .GroupBy(a => a.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.CreatedAt).OrderBy(x => x).ToList());
+
+        double RetentionPercent(int day)
+        {
+            var eligible = usersForRetention
+                .Where(u => u.CreatedAt <= now.AddDays(-day))
+                .ToList();
+
+            if (eligible.Count == 0) return 0;
+
+            var retained = eligible.Count(u =>
+            {
+                if (!attemptDatesByUser.TryGetValue(u.UserId, out var attemptDates)) return false;
+
+                var windowEnd = u.CreatedAt.AddDays(day + 1);
+                return attemptDates.Any(at => at >= u.CreatedAt && at < windowEnd);
+            });
+
+            return Math.Round((retained / (double)eligible.Count) * 100, 1);
+        }
+
+        var trend = new List<object>();
+        var dauSum = 0;
+        for (var i = 0; i < days; i++)
+        {
+            var dayStart = startInclusive.AddDays(i);
+            var dayEnd = dayStart.AddDays(1);
+
+            var dayAttempts = attemptsInWindow
+                .Where(a => a.CreatedAt >= dayStart && a.CreatedAt < dayEnd)
+                .ToList();
+
+            var dau = activityForRolling
+                .Where(a => a.CreatedAt >= dayStart && a.CreatedAt < dayEnd)
+                .Select(a => a.UserId)
+                .Distinct()
+                .Count();
+
+            var wau = activityForRolling
+                .Where(a => a.CreatedAt >= dayEnd.AddDays(-7) && a.CreatedAt < dayEnd)
+                .Select(a => a.UserId)
+                .Distinct()
+                .Count();
+
+            var signups = usersInWindow.Count(u => u.CreatedAt >= dayStart && u.CreatedAt < dayEnd);
+            var solved = dayAttempts.Count(a => a.IsCorrect);
+            var reports = dayAttempts.Count(a => !a.IsCorrect);
+            dauSum += dau;
+
+            trend.Add(new
+            {
+                label = normalizedRange == "month" ? dayStart.Day.ToString() : dayStart.ToString("ddd"),
+                date = dayStart.ToString("yyyy-MM-dd"),
+                dau,
+                wau,
+                signups,
+                solved,
+                reports
+            });
+        }
+
+        var totalUsers = (await db.Database.SqlQuery<AnalyticsCountRow>($@"
+        SELECT COUNT(DISTINCT user_id)::int AS ""Count""
+        FROM user_submissions
+    ").ToListAsync()).FirstOrDefault()?.Count ?? 0;
+
+        var totalAttempts = (await db.Database.SqlQuery<AnalyticsCountRow>($@"
+        SELECT COUNT(*)::int AS ""Count""
+        FROM user_submissions
+    ").ToListAsync()).FirstOrDefault()?.Count ?? 0;
+
+        var last24hStart = now.AddDays(-1);
+        var last7dStart = now.AddDays(-7);
+
+        var dailyActiveUsers = activityForRetention
+            .Where(a => a.CreatedAt >= last24hStart)
+            .Select(a => a.UserId)
+            .Distinct()
+            .Count();
+
+        var weeklyActiveUsers = activityForRetention
+            .Where(a => a.CreatedAt >= last7dStart)
+            .Select(a => a.UserId)
+            .Distinct()
+            .Count();
+
+        var signupsInWindow = usersInWindow.Count;
+        var solvedInWindow = attemptsInWindow.Count(a => a.IsCorrect);
+        var reportsInWindow = attemptsInWindow.Count(a => !a.IsCorrect);
+
+        var avgDau = trend.Count == 0
+            ? 0
+            : (int)Math.Round(dauSum / (double)trend.Count);
+
+        var reportsPerThousand = solvedInWindow == 0
+            ? 0
+            : (int)Math.Round((reportsInWindow / (double)solvedInWindow) * 1000);
+
+        var topicStats = attemptsInWindow
+            .GroupBy(a => problemsById.TryGetValue(a.ProblemId, out var topic) ? topic : "Uncategorized")
+            .Select(g => new
+            {
+                topic = g.Key,
+                solves = g.Count(x => x.IsCorrect),
+                reports = g.Count(x => !x.IsCorrect)
+            })
+            .OrderByDescending(x => x.solves)
+            .ThenBy(x => x.topic)
+            .Take(4)
+            .ToList();
+
+        var repeatedAttemptSignals = attemptsInWindow
+            .GroupBy(a => new { a.UserId, a.ProblemId })
+            .Count(g => g.Count() >= 3);
+
+        var signupsWithoutAttempts = usersInWindow.Count(u => !attemptsInWindow.Any(a => a.UserId == u.UserId));
+        var slowSolveSignals = attemptsInWindow.Count(a => a.IsCorrect && a.TimeSpentSeconds >= 300);
+
+        var issueDistribution = new[]
+        {
+        new { name = "Wrong Attempts", value = reportsInWindow },
+        new { name = "Slow Solves", value = slowSolveSignals },
+        new { name = "Repeated Attempts", value = repeatedAttemptSignals },
+        new { name = "New User Drop-off", value = signupsWithoutAttempts }
+    };
+
+        var avgSolveTime = attemptsInWindow.Count == 0
+            ? 0
+            : (int)Math.Round(attemptsInWindow.Average(a => a.TimeSpentSeconds));
+
+        var correctRate = attemptsInWindow.Count == 0
+            ? 0
+            : Math.Round((attemptsInWindow.Count(a => a.IsCorrect) / (double)attemptsInWindow.Count) * 100, 1);
+
+        var alerts = topicStats
+            .OrderByDescending(t => t.reports)
+            .Take(3)
+            .Select((t, index) =>
+            {
+                var priority = t.reports >= 25 ? "High" : t.reports >= 10 ? "Medium" : "Low";
+                return new
+                {
+                    id = $"ANL-{(index + 1):000}",
+                    title = $"{t.topic}: {t.reports} incorrect attempts",
+                    priority,
+                    eta = t.reports >= 25 ? "Needs review" : "Monitor"
+                };
+            })
+            .ToList();
+
+        var health = new[]
+        {
+        new { label = "Total Users", value = totalUsers.ToString("N0"), status = "Healthy" },
+        new { label = "Total Attempts", value = totalAttempts.ToString("N0"), status = "Stable" },
+        new { label = "Correctness Rate", value = $"{correctRate:0.0}%", status = correctRate >= 65 ? "Good" : "Watch" },
+        new { label = "Avg Solve Time", value = $"{avgSolveTime}s", status = avgSolveTime <= 240 ? "Normal" : "Watch" }
+    };
+
+        var retention = new[]
+        {
+        new { name = "D1", value = RetentionPercent(1) },
+        new { name = "D3", value = RetentionPercent(3) },
+        new { name = "D7", value = RetentionPercent(7) },
+        new { name = "D14", value = RetentionPercent(14) },
+        new { name = "D30", value = RetentionPercent(30) }
+    };
+
+        var rangeLabel = normalizedRange == "month"
+            ? "Last 30 days"
+            : normalizedWeekOffset == 0
+                ? "Last 7 days"
+                : $"{normalizedWeekOffset} week(s) ago";
+
+        return Results.Ok(new
+        {
+            range = normalizedRange,
+            weekOffset = normalizedWeekOffset,
+            rangeLabel,
+            trends = trend,
+            overview = new
+            {
+                avgDau,
+                totalSignups = signupsInWindow,
+                totalSolved = solvedInWindow,
+                totalReports = reportsInWindow,
+                reportsPerThousand
+            },
+            kpis = new
+            {
+                dailyActiveUsers,
+                weeklyActiveUsers,
+                newSignups = signupsInWindow,
+                retentionD7 = retention.First(r => r.name == "D7").value,
+                solvedProblems = solvedInWindow,
+                reportCount = reportsInWindow
+            },
+            retention,
+            issueDistribution,
+            systemHealth = health,
+            moderationAlerts = alerts,
+            topTopics = topicStats
+        });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to build admin analytics payload.");
+
+        return Results.Ok(new
+        {
+            range = normalizedRange,
+            weekOffset = normalizedWeekOffset,
+            rangeLabel = "Analytics temporarily unavailable",
+            trends = Array.Empty<object>(),
+            overview = new
+            {
+                avgDau = 0,
+                totalSignups = 0,
+                totalSolved = 0,
+                totalReports = 0,
+                reportsPerThousand = 0
+            },
+            kpis = new
+            {
+                dailyActiveUsers = 0,
+                weeklyActiveUsers = 0,
+                newSignups = 0,
+                retentionD7 = 0,
+                solvedProblems = 0,
+                reportCount = 0
+            },
+            retention = new[]
+            {
+                new { name = "D1", value = 0.0 },
+                new { name = "D3", value = 0.0 },
+                new { name = "D7", value = 0.0 },
+                new { name = "D14", value = 0.0 },
+                new { name = "D30", value = 0.0 }
+            },
+            issueDistribution = Array.Empty<object>(),
+            systemHealth = new[]
+            {
+                new { label = "Backend analytics", value = "Unavailable", status = "Watch" }
+            },
+            moderationAlerts = Array.Empty<object>(),
+            topTopics = Array.Empty<object>()
+        });
+    }
+});
+
 // Existing math endpoint
 app.MapGet("/mathproblem", () =>
 {
@@ -778,3 +1154,29 @@ using (var scope = app.Services.CreateScope())
 
 
 app.Run();
+
+sealed class AnalyticsUserRow
+{
+    public Guid UserId { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+sealed class AnalyticsSubmissionRow
+{
+    public Guid UserId { get; set; }
+    public string ProblemId { get; set; } = string.Empty;
+    public bool IsCorrect { get; set; }
+    public int TimeSpentSeconds { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+sealed class AnalyticsActivityRow
+{
+    public Guid UserId { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+sealed class AnalyticsCountRow
+{
+    public int Count { get; set; }
+}

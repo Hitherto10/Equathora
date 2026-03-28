@@ -39,8 +39,8 @@ const AdminDashboard = () => {
             <header>
                 <Navbar></Navbar>
             </header>
-            <main className='flex  relative min-h-screen'>
-                <aside className='bg-[var(--main-color)] min-h-screen absolute left-0 w-1/8 shadow-2xl z-4 overflow-hidden'>
+            <main className='flex relative max-h-[calc(100vh-7.5vh)] overflow-hidden'>
+                <aside className='bg-[var(--main-color)] min-h-screen sticky left-0 w-1/8 shadow-2xl z-4 overflow-hidden h-[calc(100vh-7.5vh)] max-h-[calc(100vh-7.5vh)]'>
                     {/* <h1 className='text-xl bg-[var(--dark-accent-color)] w-full text-center py-2 cursor-pointer shadow-md pb-4 font-black'>Admin Tools</h1> */}
                     {tabs.map(tab => (
                         <button
@@ -49,7 +49,7 @@ const AdminDashboard = () => {
                             className={`text-xl w-full text-center px-3 py-2 cursor-pointer shadow-md ${selected === tab.id ? 'bg-[linear-gradient(360deg,var(--accent-color),var(--dark-accent-color))] z-10 relative font-black ' : 'bg-[var(--main-color)] text-[var(--secondary-color)] hover:bg-gray-300 font-medium'}`}>{tab.label}</button>
                     ))}
                 </aside>
-                <section className='bg-[var(--main-color)] w-7/8 absolute right-0 min-h-screen'>
+                <section className='bg-[var(--main-color)] w-7/8 absolute right-0 overflow-y-scroll h-[calc(100vh-7.5vh)] max-h-[calc(100vh-7.5vh)]'>
                     {TAB_COMPONENTS[selected]}
                 </section>
             </main>
