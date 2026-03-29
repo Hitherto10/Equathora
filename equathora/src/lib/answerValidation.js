@@ -2,6 +2,13 @@
 // This validates student answers against the problem's accepted answers
 
 import { validateExpression } from '../utils/mathNetService';
+import { evaluate, parse, simplify } from 'mathjs';
+
+const ABS_TOLERANCE = 1e-6;
+const REL_TOLERANCE = 1e-6;
+const NUMERIC_TEST_ITERATIONS = 12;
+const NUMERIC_MIN_VALUE = 1;
+const NUMERIC_MAX_VALUE = 21;
 
 /**
  * Normalize a LaTeX or plain-text answer into a canonical comparable string.
@@ -60,8 +67,124 @@ const normalizeAnswer = (answer) => {
     s = s.replace(/[,$°]/g, '');
     // Remove parentheses around single terms:  (x) → x
     s = s.replace(/\(([a-z0-9]+)\)/g, '$1');
+    // 2x -> 2*x, 2(x+1) -> 2*(x+1)
+    s = s.replace(/(\d)([a-z(])/gi, '$1*$2');
+    // x(y+1) -> x*(y+1), )x -> )*x, )( -> )*(
+    s = s.replace(/([a-z)])\(/gi, '$1*(');
+    s = s.replace(/\)([a-z0-9])/gi, ')*$1');
+    // xy -> x*y (split adjacent letter symbols)
+    s = s.replace(/([a-z])([a-z])/gi, '$1*$2');
+    // x2 -> x^2
+    s = s.replace(/([a-z])(\d+)\b/gi, '$1^$2');
 
     return s;
+};
+
+const approxEqual = (left, right) => {
+    const diff = Math.abs(left - right);
+    const scale = Math.max(1, Math.abs(left), Math.abs(right));
+    return diff <= ABS_TOLERANCE || diff <= REL_TOLERANCE * scale;
+};
+
+const generateScopeValue = (mode) => {
+    if (mode === 'integer') {
+        return Math.floor(Math.random() * 12) + 1;
+    }
+
+    if (mode === 'edge') {
+        const edgePool = [0.5, 1, 2, 3, 5, 10];
+        return edgePool[Math.floor(Math.random() * edgePool.length)];
+    }
+
+    return Math.random() * (NUMERIC_MAX_VALUE - NUMERIC_MIN_VALUE) + NUMERIC_MIN_VALUE;
+};
+
+const extractVariables = (expression) => {
+    const reserved = new Set([
+        'pi',
+        'e',
+        'sqrt',
+        'sin',
+        'cos',
+        'tan',
+        'asin',
+        'acos',
+        'atan',
+        'log',
+        'ln',
+        'abs',
+        'exp',
+        'nroot'
+    ]);
+
+    try {
+        const root = parse(expression);
+        const symbols = new Set();
+        root.traverse((node) => {
+            if (node?.isSymbolNode && node.name && !reserved.has(node.name)) {
+                symbols.add(node.name);
+            }
+        });
+
+        if (symbols.size > 0) {
+            return [...symbols];
+        }
+    } catch {
+        // Fall through to regex-based extraction
+    }
+
+    const regexMatches = expression.match(/[a-z]\w*/gi) || [];
+    return [...new Set(regexMatches.map((name) => name.toLowerCase()).filter((name) => !reserved.has(name)))];
+};
+
+const symbolicEqual = (leftExpression, rightExpression) => {
+    try {
+        const simplifiedLeft = simplify(leftExpression).toString();
+        const simplifiedRight = simplify(rightExpression).toString();
+        return simplifiedLeft === simplifiedRight;
+    } catch {
+        return false;
+    }
+};
+
+const numericEqual = (leftExpression, rightExpression) => {
+    const variables = [...new Set([...extractVariables(leftExpression), ...extractVariables(rightExpression)])];
+    const variableNames = variables.length > 0 ? variables : ['x', 'y', 'z'];
+    const modes = ['random', 'integer', 'edge'];
+
+    for (const mode of modes) {
+        for (let i = 0; i < NUMERIC_TEST_ITERATIONS; i++) {
+            const scope = {};
+            for (const variableName of variableNames) {
+                scope[variableName] = generateScopeValue(mode);
+            }
+
+            try {
+                const leftValue = evaluate(leftExpression, scope);
+                const rightValue = evaluate(rightExpression, scope);
+
+                if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
+                    return false;
+                }
+
+                if (!approxEqual(leftValue, rightValue)) {
+                    return false;
+                }
+            } catch {
+                return false;
+            }
+        }
+    }
+
+    return true;
+};
+
+const expressionEqual = (leftExpression, rightExpression) => {
+    if (symbolicEqual(leftExpression, rightExpression)) {
+        return true;
+    }
+
+    return numericEqual(leftExpression, rightExpression);
 };
 
 /**
@@ -143,9 +266,22 @@ export const validateAnswer = async (userAnswer, problem) => {
         }
     }
 
-    // Check numerical equivalence
+    // Check robust algebraic / numeric equivalence (symbolic + numeric modes)
     for (const accepted of acceptedAnswers) {
-        if (isNumericallyEqual(normalizedUserAnswer, normalizeAnswer(accepted))) {
+        const normalizedAccepted = normalizeAnswer(accepted);
+
+        if (expressionEqual(normalizedUserAnswer, normalizedAccepted)) {
+            return {
+                isCorrect: true,
+                feedback: getCorrectFeedback(problem),
+                score: 1
+            };
+        }
+    }
+
+    // Lightweight numeric fallback for plain number answers
+    for (const accepted of acceptedAnswers) {
+        if (isNumericallyEqual(normalizedUserAnswer, normalizeAnswer(accepted), ABS_TOLERANCE)) {
             return {
                 isCorrect: true,
                 feedback: getCorrectFeedback(problem),
