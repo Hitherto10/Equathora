@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
+// ChatBot
+import Chatbot from './Chatbot';
 
 const AdminSolutionGenerator = () => {
     return (
-        <div></div>
+        <div>
+            <Chatbot></Chatbot>
+        </div>
     );
 };
 

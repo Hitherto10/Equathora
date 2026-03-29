@@ -295,13 +295,13 @@ app.MapGet("/api/admin/analytics", async (
         try
         {
             activityForRolling = await db.Database.SqlQuery<AnalyticsActivityRow>($@"
-            SELECT user_id AS ""UserId"", created_at AS ""CreatedAt""
+            SELECT user_id AS ""UserId"", created_at AS ""CreatedAt"", COALESCE(event_type, 'app_active') AS ""EventType""
             FROM user_activity_events
             WHERE created_at >= {rollingStart} AND created_at < {endExclusive}
         ").ToListAsync();
 
             activityForRetention = await db.Database.SqlQuery<AnalyticsActivityRow>($@"
-            SELECT user_id AS ""UserId"", created_at AS ""CreatedAt""
+            SELECT user_id AS ""UserId"", created_at AS ""CreatedAt"", COALESCE(event_type, 'app_active') AS ""EventType""
             FROM user_activity_events
             WHERE created_at >= {now.AddDays(-180)} AND created_at < {endExclusive}
         ").ToListAsync();
@@ -310,10 +310,20 @@ app.MapGet("/api/admin/analytics", async (
         {
             // Backward compatible fallback when the activity table has not been created yet.
             activityForRolling = submissionsForRolling
-                .Select(s => new AnalyticsActivityRow { UserId = s.UserId, CreatedAt = s.CreatedAt })
+                .Select(s => new AnalyticsActivityRow
+                {
+                    UserId = s.UserId,
+                    CreatedAt = s.CreatedAt,
+                    EventType = "submission"
+                })
                 .ToList();
             activityForRetention = submissionsForRetention
-                .Select(s => new AnalyticsActivityRow { UserId = s.UserId, CreatedAt = s.CreatedAt })
+                .Select(s => new AnalyticsActivityRow
+                {
+                    UserId = s.UserId,
+                    CreatedAt = s.CreatedAt,
+                    EventType = "submission"
+                })
                 .ToList();
         }
 
@@ -336,28 +346,72 @@ app.MapGet("/api/admin/analytics", async (
         }
         catch
         {
-            // Fallback when auth.users is inaccessible: infer user lifecycle from first submission.
-            var firstSeenByUser = submissionsForRetention
-                .GroupBy(s => s.UserId)
-                .Select(g => new AnalyticsUserRow
-                {
-                    UserId = g.Key,
-                    CreatedAt = g.Min(x => x.CreatedAt)
-                })
-                .ToList();
+            // Fallback when auth.users is inaccessible:
+            // 1) explicit signup events, 2) first tracked activity, 3) first submission.
+            List<AnalyticsUserRow> signupSignalsByUser;
+            List<AnalyticsUserRow> firstSeenByActivity;
 
-            usersInWindow = firstSeenByUser
+            try
+            {
+                signupSignalsByUser = await db.Database.SqlQuery<AnalyticsUserRow>($@"
+                SELECT user_id AS ""UserId"", MIN(created_at) AS ""CreatedAt""
+                FROM user_activity_events
+                WHERE LOWER(COALESCE(event_type, 'app_active')) = 'signup'
+                GROUP BY user_id
+            ").ToListAsync();
+
+                firstSeenByActivity = await db.Database.SqlQuery<AnalyticsUserRow>($@"
+                SELECT user_id AS ""UserId"", MIN(created_at) AS ""CreatedAt""
+                FROM user_activity_events
+                GROUP BY user_id
+            ").ToListAsync();
+            }
+            catch
+            {
+                signupSignalsByUser = activityForRetention
+                    .Where(a => string.Equals(a.EventType, "signup", StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(a => a.UserId)
+                    .Select(g => new AnalyticsUserRow
+                    {
+                        UserId = g.Key,
+                        CreatedAt = g.Min(x => x.CreatedAt)
+                    })
+                    .ToList();
+
+                firstSeenByActivity = activityForRetention
+                    .GroupBy(a => a.UserId)
+                    .Select(g => new AnalyticsUserRow
+                    {
+                        UserId = g.Key,
+                        CreatedAt = g.Min(x => x.CreatedAt)
+                    })
+                    .ToList();
+            }
+
+            var inferredLifecycle = signupSignalsByUser.Count > 0
+                ? signupSignalsByUser
+                : firstSeenByActivity;
+
+            if (inferredLifecycle.Count == 0)
+            {
+                inferredLifecycle = await db.Database.SqlQuery<AnalyticsUserRow>($@"
+                SELECT user_id AS ""UserId"", MIN(submitted_at) AS ""CreatedAt""
+                FROM user_submissions
+                GROUP BY user_id
+            ").ToListAsync();
+            }
+
+            usersInWindow = inferredLifecycle
                 .Where(u => u.CreatedAt >= startInclusive && u.CreatedAt < endExclusive)
                 .ToList();
 
-            usersForRetention = firstSeenByUser
+            usersForRetention = inferredLifecycle
                 .Where(u => u.CreatedAt >= now.AddDays(-180) && u.CreatedAt <= now.AddDays(-1))
                 .ToList();
         }
 
         var problems = await db.Problems
             .AsNoTracking()
-            .Where(p => p.IsActive)
             .Select(p => new { p.Id, p.Topic })
             .ToListAsync();
 
@@ -367,26 +421,33 @@ app.MapGet("/api/admin/analytics", async (
             .Where(a => a.CreatedAt >= startInclusive && a.CreatedAt < endExclusive)
             .ToList();
 
-        var attemptDatesByUser = submissionsForRetention
+        var activityDatesByUser = activityForRetention
             .GroupBy(a => a.UserId)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(x => x.CreatedAt).OrderBy(x => x).ToList());
+                g => g
+                    .Select(x => x.CreatedAt.Date)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList());
 
         double RetentionPercent(int day)
         {
+            var eligibleCutoffDate = now.Date.AddDays(-day);
+
             var eligible = usersForRetention
-                .Where(u => u.CreatedAt <= now.AddDays(-day))
+                .Where(u => u.CreatedAt.Date <= eligibleCutoffDate)
                 .ToList();
 
             if (eligible.Count == 0) return 0;
 
             var retained = eligible.Count(u =>
             {
-                if (!attemptDatesByUser.TryGetValue(u.UserId, out var attemptDates)) return false;
+                if (!activityDatesByUser.TryGetValue(u.UserId, out var activeDates)) return false;
 
-                var windowEnd = u.CreatedAt.AddDays(day + 1);
-                return attemptDates.Any(at => at >= u.CreatedAt && at < windowEnd);
+                var targetStart = u.CreatedAt.Date.AddDays(day);
+                var targetEnd = targetStart.AddDays(1);
+                return activeDates.Any(at => at >= targetStart && at < targetEnd);
             });
 
             return Math.Round((retained / (double)eligible.Count) * 100, 1);
@@ -403,6 +464,12 @@ app.MapGet("/api/admin/analytics", async (
                 .Where(a => a.CreatedAt >= dayStart && a.CreatedAt < dayEnd)
                 .ToList();
 
+            var dayUserReportSignals = activityForRolling
+                .Count(a =>
+                    a.CreatedAt >= dayStart &&
+                    a.CreatedAt < dayEnd &&
+                    string.Equals(a.EventType, "problem_report", StringComparison.OrdinalIgnoreCase));
+
             var dau = activityForRolling
                 .Where(a => a.CreatedAt >= dayStart && a.CreatedAt < dayEnd)
                 .Select(a => a.UserId)
@@ -417,7 +484,7 @@ app.MapGet("/api/admin/analytics", async (
 
             var signups = usersInWindow.Count(u => u.CreatedAt >= dayStart && u.CreatedAt < dayEnd);
             var solved = dayAttempts.Count(a => a.IsCorrect);
-            var reports = dayAttempts.Count(a => !a.IsCorrect);
+            var reports = dayAttempts.Count(a => !a.IsCorrect) + dayUserReportSignals;
             dauSum += dau;
 
             trend.Add(new
@@ -432,10 +499,31 @@ app.MapGet("/api/admin/analytics", async (
             });
         }
 
-        var totalUsers = (await db.Database.SqlQuery<AnalyticsCountRow>($@"
+        int totalUsers;
+        try
+        {
+            totalUsers = (await db.Database.SqlQuery<AnalyticsCountRow>($@"
+        SELECT COUNT(*)::int AS ""Count""
+        FROM auth.users
+    ").ToListAsync()).FirstOrDefault()?.Count ?? 0;
+        }
+        catch
+        {
+            try
+            {
+                totalUsers = (await db.Database.SqlQuery<AnalyticsCountRow>($@"
+        SELECT COUNT(DISTINCT user_id)::int AS ""Count""
+        FROM user_activity_events
+    ").ToListAsync()).FirstOrDefault()?.Count ?? 0;
+            }
+            catch
+            {
+                totalUsers = (await db.Database.SqlQuery<AnalyticsCountRow>($@"
         SELECT COUNT(DISTINCT user_id)::int AS ""Count""
         FROM user_submissions
     ").ToListAsync()).FirstOrDefault()?.Count ?? 0;
+            }
+        }
 
         var totalAttempts = (await db.Database.SqlQuery<AnalyticsCountRow>($@"
         SELECT COUNT(*)::int AS ""Count""
@@ -459,7 +547,12 @@ app.MapGet("/api/admin/analytics", async (
 
         var signupsInWindow = usersInWindow.Count;
         var solvedInWindow = attemptsInWindow.Count(a => a.IsCorrect);
-        var reportsInWindow = attemptsInWindow.Count(a => !a.IsCorrect);
+        var userReportSignalsInWindow = activityForRolling
+            .Count(a =>
+                a.CreatedAt >= startInclusive &&
+                a.CreatedAt < endExclusive &&
+                string.Equals(a.EventType, "problem_report", StringComparison.OrdinalIgnoreCase));
+        var reportsInWindow = attemptsInWindow.Count(a => !a.IsCorrect) + userReportSignalsInWindow;
 
         var avgDau = trend.Count == 0
             ? 0
@@ -491,7 +584,8 @@ app.MapGet("/api/admin/analytics", async (
 
         var issueDistribution = new[]
         {
-        new { name = "Wrong Attempts", value = reportsInWindow },
+        new { name = "Wrong Attempts", value = attemptsInWindow.Count(a => !a.IsCorrect) },
+        new { name = "User Reports", value = userReportSignalsInWindow },
         new { name = "Slow Solves", value = slowSolveSignals },
         new { name = "Repeated Attempts", value = repeatedAttemptSignals },
         new { name = "New User Drop-off", value = signupsWithoutAttempts }
@@ -1174,6 +1268,7 @@ sealed class AnalyticsActivityRow
 {
     public Guid UserId { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string EventType { get; set; } = string.Empty;
 }
 
 sealed class AnalyticsCountRow

@@ -96,7 +96,7 @@ export async function getCompletedProblems() {
                 try {
                     const parsed = JSON.parse(pid);
                     return String(parsed.problemId ?? parsed.id ?? '');
-                } catch (e) {
+                } catch {
                     console.error('Failed to parse problem_id JSON:', pid);
                     return null;
                 }
@@ -163,7 +163,7 @@ export async function getCompletedProblems() {
     }
 }
 
-export async function recordSubmission(problemId, submittedAnswer, isCorrect, timeSpentSeconds) {
+export async function recordSubmission(problemId, submittedAnswer, isCorrect, timeSpentSeconds, metadata = {}) {
     // Best-effort: persist the submission only.
     // Counter increments are handled by recordProblemStats in progressStorage.js
     try {
@@ -176,7 +176,8 @@ export async function recordSubmission(problemId, submittedAnswer, isCorrect, ti
             normalizedProblemId,
             submittedAnswer,
             Boolean(isCorrect),
-            Number.isFinite(timeSpentSeconds) ? timeSpentSeconds : 0
+            Number.isFinite(timeSpentSeconds) ? timeSpentSeconds : 0,
+            metadata
         );
 
         // Note: Do NOT update progress counters here.
@@ -330,23 +331,56 @@ function createDefaultStreak() {
 // SUBMISSIONS
 // ============================================================================
 
-export async function saveSubmission(problemId, submittedAnswer, isCorrect, timeSpentSeconds) {
+export async function saveSubmission(problemId, submittedAnswer, isCorrect, timeSpentSeconds, metadata = {}) {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        const { error } = await supabase
-            .from('user_submissions')
-            .insert({
-                user_id: session.user.id,
-                problem_id: problemId,
-                submitted_answer: submittedAnswer,
-                is_correct: isCorrect,
-                time_spent_seconds: timeSpentSeconds,
-                submitted_at: new Date().toISOString()
-            });
+        const basePayload = {
+            user_id: session.user.id,
+            problem_id: problemId,
+            submitted_answer: submittedAnswer,
+            is_correct: isCorrect,
+            time_spent_seconds: timeSpentSeconds,
+            submitted_at: new Date().toISOString()
+        };
 
-        if (error) throw error;
+        const normalizedTopic = typeof metadata.topic === 'string' ? metadata.topic.trim() : '';
+        const normalizedDifficulty = typeof metadata.difficulty === 'string' ? metadata.difficulty.trim() : '';
+
+        const hasAnalyticsMetadata = Boolean(normalizedTopic || normalizedDifficulty);
+        const payloadCandidates = hasAnalyticsMetadata
+            ? [
+                {
+                    ...basePayload,
+                    ...(normalizedTopic ? { topic: normalizedTopic, problem_topic: normalizedTopic } : {}),
+                    ...(normalizedDifficulty ? { difficulty: normalizedDifficulty, problem_difficulty: normalizedDifficulty } : {})
+                },
+                {
+                    ...basePayload,
+                    ...(normalizedTopic ? { topic: normalizedTopic } : {}),
+                    ...(normalizedDifficulty ? { difficulty: normalizedDifficulty } : {})
+                },
+                {
+                    ...basePayload,
+                    ...(normalizedTopic ? { problem_topic: normalizedTopic } : {}),
+                    ...(normalizedDifficulty ? { problem_difficulty: normalizedDifficulty } : {})
+                },
+                basePayload
+            ]
+            : [basePayload];
+
+        let lastError = null;
+        for (const candidate of payloadCandidates) {
+            const { error } = await supabase
+                .from('user_submissions')
+                .insert(candidate);
+
+            if (!error) return;
+            lastError = error;
+        }
+
+        if (lastError) throw lastError;
     } catch (error) {
         console.error('Error saving submission:', error);
     }

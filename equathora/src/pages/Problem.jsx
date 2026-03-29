@@ -41,6 +41,7 @@ import {
 } from '../lib/progressStorage';
 import { validateAnswer } from '../lib/answerValidation';
 import { recordSubmission, updateStreakData } from '../lib/databaseService';
+import { trackActivityEvent } from '../lib/activityTrackingService';
 import { buildAchievements } from '../data/achievements';
 import {
   checkNewAchievements,
@@ -561,7 +562,10 @@ const Problem = () => {
 
     // Persist attempt to backend (best-effort; does not block UI)
     try {
-      void recordSubmission(problem.id, finalAnswer, validation.isCorrect, timeSpentSeconds);
+      void recordSubmission(problem.id, finalAnswer, validation.isCorrect, timeSpentSeconds, {
+        topic: problem.topic,
+        difficulty: problem.difficulty
+      });
     } catch {
       // noop
     }
@@ -679,6 +683,9 @@ const Problem = () => {
       alert('Please select a reason for reporting');
       return;
     }
+
+    void trackActivityEvent('problem_report');
+
     // Send report to backend
     console.log('Report submitted:', { reason: reportReason, details: reportDetails });
     alert('Thank you for your report! We will review it shortly.');

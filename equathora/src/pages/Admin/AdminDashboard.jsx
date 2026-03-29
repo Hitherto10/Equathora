@@ -17,7 +17,7 @@ const TAB_COMPONENTS = {
     problems: <AdminProblems />,
     users: <AdminUserManagement />,
     announcements: <AdminProblems />,
-    solutionGenerator: <AdminProblems />,
+    solutionGenerator: <AdminSolutionGenerator />,
     finance: <AdminProblems />,
     logs: <AdminProblems />,
 }
