@@ -1035,21 +1035,54 @@ app.MapGet("/api/problems", async (
     };
 
     var totalCount = filteredWithProgress.Count;
-    var pagedData = ordered
+    var pagedRows = ordered
         .Skip((currentPage - 1) * currentPageSize)
         .Take(currentPageSize)
-        .Select(p => new
+        .ToList();
+
+    var pagedProblemIds = pagedRows
+        .Select(p => p.Id)
+        .ToArray();
+
+    var attemptStats = await db.Attempts
+        .AsNoTracking()
+        .Where(a => pagedProblemIds.Contains(a.ProblemId))
+        .GroupBy(a => a.ProblemId)
+        .Select(g => new
         {
-            id = p.Id,
-            group_id = p.GroupId,
-            title = p.Title,
-            description = p.Description,
-            topic = p.Topic,
-            difficulty = p.Difficulty,
-            premium = p.IsPremium,
-            slug = p.Slug,
-            completed = p.Completed,
-            inProgress = p.InProgress
+            problemId = g.Key,
+            attempts = g.Count(),
+            correct = g.Count(x => x.IsCorrect)
+        })
+        .ToDictionaryAsync(x => x.problemId, x => new { x.attempts, x.correct });
+
+    var pagedData = pagedRows
+        .Select(p =>
+        {
+            var stats = attemptStats.TryGetValue(p.Id, out var value)
+                ? value
+                : new { attempts = 0, correct = 0 };
+
+            var solveRate = stats.attempts == 0
+                ? 0
+                : Math.Round((stats.correct / (double)stats.attempts) * 100, 1);
+
+            return new
+            {
+                id = p.Id,
+                group_id = p.GroupId,
+                title = p.Title,
+                description = p.Description,
+                topic = p.Topic,
+                difficulty = p.Difficulty,
+                premium = p.IsPremium,
+                slug = p.Slug,
+                completed = p.Completed,
+                inProgress = p.InProgress,
+                createdAt = p.CreatedAt,
+                attempts = stats.attempts,
+                solveRate
+            };
         })
         .ToList();
 

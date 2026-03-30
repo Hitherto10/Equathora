@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Bar,
     BarChart,
@@ -13,6 +13,7 @@ import {
     XAxis,
     YAxis
 } from 'recharts';
+import { getAllAdminProblems } from '@/lib/adminProblemsService';
 
 const palette = {
     raisinBlack: 'var(--raisin-black)',
@@ -25,63 +26,12 @@ const palette = {
     accentDark: 'var(--dark-accent-color)'
 };
 
-const problemsMock = [
-    { id: 'P-2401', title: 'Linear Expressions Intro', topic: 'Algebra', difficulty: 'Easy', source: 'Internal', status: 'Published', author: 'A. Mentor', date: '2026-03-22', attempts: 4100, solveRate: 78 },
-    { id: 'P-2402', title: 'System of Equations', topic: 'Algebra', difficulty: 'Medium', source: 'Internal', status: 'Review', author: 'K. Teacher', date: '2026-03-20', attempts: 2980, solveRate: 52 },
-    { id: 'P-2403', title: 'Triangle Similarity', topic: 'Geometry', difficulty: 'Medium', source: 'Olympiad', status: 'Published', author: 'R. Coach', date: '2026-03-18', attempts: 2160, solveRate: 49 },
-    { id: 'P-2404', title: 'Probability Tree Model', topic: 'Probability', difficulty: 'Hard', source: 'Contest', status: 'Draft', author: 'S. Author', date: '2026-03-16', attempts: 1320, solveRate: 33 },
-    { id: 'P-2405', title: 'Ratio and Scale', topic: 'Arithmetic', difficulty: 'Easy', source: 'Internal', status: 'Published', author: 'A. Mentor', date: '2026-03-14', attempts: 4520, solveRate: 83 },
-    { id: 'P-2406', title: 'Quadratic Graph Reasoning', topic: 'Algebra', difficulty: 'Hard', source: 'Olympiad', status: 'Archived', author: 'N. Reviewer', date: '2026-03-12', attempts: 980, solveRate: 27 },
-    { id: 'P-2407', title: 'Coordinate Geometry Basics', topic: 'Geometry', difficulty: 'Easy', source: 'Internal', status: 'Published', author: 'K. Teacher', date: '2026-03-10', attempts: 3610, solveRate: 74 },
-    { id: 'P-2408', title: 'Combinatorics Case Split', topic: 'Combinatorics', difficulty: 'Hard', source: 'Contest', status: 'Review', author: 'R. Coach', date: '2026-03-08', attempts: 1140, solveRate: 24 }
-];
-
-const weekSeries = [
-    [
-        { label: 'Mon', created: 8, published: 5, flagged: 2, avgSolveRate: 58 },
-        { label: 'Tue', created: 7, published: 4, flagged: 1, avgSolveRate: 60 },
-        { label: 'Wed', created: 9, published: 6, flagged: 2, avgSolveRate: 62 },
-        { label: 'Thu', created: 6, published: 5, flagged: 1, avgSolveRate: 61 },
-        { label: 'Fri', created: 10, published: 7, flagged: 3, avgSolveRate: 63 },
-        { label: 'Sat', created: 5, published: 3, flagged: 1, avgSolveRate: 64 },
-        { label: 'Sun', created: 4, published: 2, flagged: 1, avgSolveRate: 65 }
-    ],
-    [
-        { label: 'Mon', created: 9, published: 6, flagged: 2, avgSolveRate: 60 },
-        { label: 'Tue', created: 8, published: 5, flagged: 2, avgSolveRate: 61 },
-        { label: 'Wed', created: 11, published: 7, flagged: 3, avgSolveRate: 62 },
-        { label: 'Thu', created: 7, published: 5, flagged: 2, avgSolveRate: 63 },
-        { label: 'Fri', created: 12, published: 8, flagged: 3, avgSolveRate: 64 },
-        { label: 'Sat', created: 6, published: 4, flagged: 1, avgSolveRate: 65 },
-        { label: 'Sun', created: 5, published: 3, flagged: 1, avgSolveRate: 66 }
-    ],
-    [
-        { label: 'Mon', created: 10, published: 6, flagged: 3, avgSolveRate: 62 },
-        { label: 'Tue', created: 9, published: 5, flagged: 2, avgSolveRate: 63 },
-        { label: 'Wed', created: 12, published: 8, flagged: 3, avgSolveRate: 64 },
-        { label: 'Thu', created: 8, published: 6, flagged: 2, avgSolveRate: 65 },
-        { label: 'Fri', created: 13, published: 9, flagged: 3, avgSolveRate: 66 },
-        { label: 'Sat', created: 7, published: 5, flagged: 2, avgSolveRate: 67 },
-        { label: 'Sun', created: 6, published: 4, flagged: 1, avgSolveRate: 68 }
-    ],
-    [
-        { label: 'Mon', created: 11, published: 7, flagged: 3, avgSolveRate: 63 },
-        { label: 'Tue', created: 10, published: 6, flagged: 2, avgSolveRate: 64 },
-        { label: 'Wed', created: 13, published: 9, flagged: 4, avgSolveRate: 65 },
-        { label: 'Thu', created: 9, published: 6, flagged: 2, avgSolveRate: 66 },
-        { label: 'Fri', created: 14, published: 9, flagged: 3, avgSolveRate: 67 },
-        { label: 'Sat', created: 8, published: 5, flagged: 2, avgSolveRate: 68 },
-        { label: 'Sun', created: 6, published: 4, flagged: 1, avgSolveRate: 69 }
-    ]
-];
-
-const monthSeries = Array.from({ length: 30 }, (_, index) => ({
-    label: `${index + 1}`,
-    created: 7 + ((index * 3) % 8),
-    published: 4 + ((index * 2) % 6),
-    flagged: 1 + (index % 4),
-    avgSolveRate: 57 + ((index * 2) % 15)
-}));
+const emptyLoadMeta = {
+    count: 0,
+    fetched: 0,
+    pagesFetched: 0,
+    pageSize: 100
+};
 
 const tooltipStyle = {
     backgroundColor: palette.main,
@@ -91,10 +41,9 @@ const tooltipStyle = {
 };
 
 const badgeStyleByStatus = {
-    Published: { backgroundColor: palette.secondary, color: palette.main },
-    Review: { backgroundColor: palette.accent, color: palette.main },
-    Draft: { backgroundColor: palette.mid, color: palette.raisinBlack },
-    Archived: { backgroundColor: palette.accentDark, color: palette.main }
+    Completed: { backgroundColor: palette.secondary, color: palette.main },
+    'In Progress': { backgroundColor: palette.accent, color: palette.main },
+    'Not Started': { backgroundColor: palette.mid, color: palette.raisinBlack }
 };
 
 const dateFilterPass = (rowDate, selectedDate) => {
@@ -102,32 +51,162 @@ const dateFilterPass = (rowDate, selectedDate) => {
     return rowDate === selectedDate;
 };
 
+const dayLabelFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
+
+const toDateKey = (input) => {
+    const raw = input ? new Date(input) : null;
+    if (!raw || Number.isNaN(raw.getTime())) return '';
+
+    const year = raw.getFullYear();
+    const month = `${raw.getMonth() + 1}`.padStart(2, '0');
+    const day = `${raw.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const formatDateForTable = (input) => {
+    const raw = input ? new Date(input) : null;
+    if (!raw || Number.isNaN(raw.getTime())) return '-';
+    return raw.toLocaleDateString();
+};
+
+const buildTimeSeries = ({ rows, range, weekIndex }) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const days = range === 'month' ? 30 : 7;
+    const shiftDays = range === 'month' ? 0 : weekIndex * 7;
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - (days - 1) - shiftDays);
+
+    const rowsByDate = rows.reduce((map, row) => {
+        if (!row.dateKey) return map;
+        if (!map.has(row.dateKey)) map.set(row.dateKey, []);
+        map.get(row.dateKey).push(row);
+        return map;
+    }, new Map());
+
+    return Array.from({ length: days }, (_, index) => {
+        const day = new Date(startDate);
+        day.setDate(startDate.getDate() + index);
+        const dateKey = toDateKey(day);
+        const dayRows = rowsByDate.get(dateKey) || [];
+        const solvedRows = dayRows.filter((item) => item.attempts > 0);
+        const avgSolveRate = solvedRows.length
+            ? Math.round(solvedRows.reduce((sum, item) => sum + item.solveRate, 0) / solvedRows.length)
+            : 0;
+
+        return {
+            label: range === 'month' ? `${index + 1}` : dayLabelFormatter.format(day),
+            created: dayRows.length,
+            published: dayRows.filter((item) => item.status === 'Completed').length,
+            flagged: dayRows.filter((item) => item.status === 'In Progress').length,
+            avgSolveRate
+        };
+    });
+};
+
+const maxWeekOffsetFromRows = (rows) => {
+    const validTimes = rows
+        .map((item) => new Date(item.createdAt).getTime())
+        .filter((value) => Number.isFinite(value));
+
+    if (!validTimes.length) return 0;
+
+    const oldest = Math.min(...validTimes);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const daysDiff = Math.max(0, Math.floor((today.getTime() - oldest) / (24 * 60 * 60 * 1000)));
+    return Math.max(0, Math.floor(daysDiff / 7));
+};
+
 const AdminProblems = () => {
+    const [problems, setProblems] = useState([]);
+    const [loadMeta, setLoadMeta] = useState(emptyLoadMeta);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [search, setSearch] = useState('');
     const [topic, setTopic] = useState('All');
     const [difficulty, setDifficulty] = useState('All');
     const [source, setSource] = useState('All');
     const [status, setStatus] = useState('All');
-    const [author, setAuthor] = useState('All');
     const [date, setDate] = useState('');
     const [range, setRange] = useState('week');
     const [weekIndex, setWeekIndex] = useState(0);
 
+    useEffect(() => {
+        let mounted = true;
+
+        const load = async () => {
+            setLoading(true);
+            setError('');
+
+            try {
+                const response = await getAllAdminProblems({ pageSize: 100 });
+                if (!mounted) return;
+
+                setProblems(Array.isArray(response?.data) ? response.data : []);
+                setLoadMeta({
+                    count: Number(response?.count || 0),
+                    fetched: Number(response?.fetched || 0),
+                    pagesFetched: Number(response?.pagesFetched || 0),
+                    pageSize: Number(response?.pageSize || 100)
+                });
+            } catch (loadError) {
+                if (!mounted) return;
+                setProblems([]);
+                setLoadMeta(emptyLoadMeta);
+                setError(loadError?.message || 'Failed to load problem library data.');
+            } finally {
+                if (mounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        load();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const normalizedProblems = useMemo(() => problems.map((row) => {
+        const rowStatus = row?.completed
+            ? 'Completed'
+            : row?.inProgress
+                ? 'In Progress'
+                : 'Not Started';
+
+        return {
+            id: String(row?.id ?? '-'),
+            title: row?.title || 'Untitled',
+            topic: row?.topic || 'Uncategorized',
+            difficulty: row?.difficulty || 'Unknown',
+            source: row?.premium ? 'Premium' : 'Standard',
+            status: rowStatus,
+            date: formatDateForTable(row?.createdAt),
+            dateKey: toDateKey(row?.createdAt),
+            attempts: Number(row?.attempts || 0),
+            solveRate: Number(row?.solveRate || 0),
+            createdAt: row?.createdAt || null
+        };
+    }), [problems]);
+
     const options = useMemo(() => {
-        const uniq = (key) => ['All', ...new Set(problemsMock.map((item) => item[key]))];
+        const uniq = (key) => ['All', ...new Set(normalizedProblems.map((item) => item[key]))];
         return {
             topics: uniq('topic'),
             difficulties: uniq('difficulty'),
             sources: uniq('source'),
-            statuses: uniq('status'),
-            authors: uniq('author')
+            statuses: uniq('status')
         };
-    }, []);
+    }, [normalizedProblems]);
 
     const filteredProblems = useMemo(() => {
         const needle = search.trim().toLowerCase();
 
-        return problemsMock.filter((row) => {
+        return normalizedProblems.filter((row) => {
             const matchesSearch = !needle
                 || row.title.toLowerCase().includes(needle)
                 || row.id.toLowerCase().includes(needle);
@@ -136,8 +215,7 @@ const AdminProblems = () => {
             const matchesDifficulty = difficulty === 'All' || row.difficulty === difficulty;
             const matchesSource = source === 'All' || row.source === source;
             const matchesStatus = status === 'All' || row.status === status;
-            const matchesAuthor = author === 'All' || row.author === author;
-            const matchesDate = dateFilterPass(row.date, date);
+            const matchesDate = dateFilterPass(row.dateKey, date);
 
             return (
                 matchesSearch
@@ -145,16 +223,16 @@ const AdminProblems = () => {
                 && matchesDifficulty
                 && matchesSource
                 && matchesStatus
-                && matchesAuthor
                 && matchesDate
             );
         });
-    }, [search, topic, difficulty, source, status, author, date]);
+    }, [normalizedProblems, search, topic, difficulty, source, status, date]);
+
+    const maxWeekIndex = useMemo(() => maxWeekOffsetFromRows(normalizedProblems), [normalizedProblems]);
 
     const activeGraphData = useMemo(() => {
-        if (range === 'month') return monthSeries;
-        return weekSeries[weekIndex];
-    }, [range, weekIndex]);
+        return buildTimeSeries({ rows: filteredProblems, range, weekIndex });
+    }, [filteredProblems, range, weekIndex]);
 
     const difficultyDistribution = useMemo(() => {
         const base = [
@@ -173,8 +251,8 @@ const AdminProblems = () => {
 
     const overview = useMemo(() => {
         const total = filteredProblems.length;
-        const published = filteredProblems.filter((item) => item.status === 'Published').length;
-        const review = filteredProblems.filter((item) => item.status === 'Review').length;
+        const published = filteredProblems.filter((item) => item.status === 'Completed').length;
+        const review = filteredProblems.filter((item) => item.status === 'In Progress').length;
         const avgSolveRate = total
             ? Math.round(filteredProblems.reduce((sum, item) => sum + item.solveRate, 0) / total)
             : 0;
@@ -183,12 +261,12 @@ const AdminProblems = () => {
     }, [filteredProblems]);
 
     const rangeLabel = range === 'month'
-        ? 'Last month (mock)'
+        ? 'Last 30 days (real data)'
         : weekIndex === 0
-            ? 'Last week (mock)'
-            : `Week ${weekIndex + 1} ago (mock)`;
+            ? 'Last week (real data)'
+            : `Week ${weekIndex + 1} ago (real data)`;
 
-    const canGoPrevWeek = range === 'week' && weekIndex < weekSeries.length - 1;
+    const canGoPrevWeek = range === 'week' && weekIndex < maxWeekIndex;
     const canGoNextWeek = range === 'week' && weekIndex > 0;
 
     return (
@@ -203,8 +281,8 @@ const AdminProblems = () => {
                 <div className='flex flex-wrap items-start justify-between gap-3'>
                     <div>
                         <h1 className='text-2xl font-black md:text-3xl'>Problem Library</h1>
-                        <p className='mt-1 text-sm md:text-base'>
-                            Searchable table, moderation view, and creation analytics for all problems (placeholder data only).
+                        <p className='mt-1 pb-2 text-sm md:text-base'>
+                            Searchable table and quality analytics from live backend data. All rows are fetched across every page.
                         </p>
                     </div>
 
@@ -269,25 +347,36 @@ const AdminProblems = () => {
                             </button>
                         </>
                     )}
+
+                    {loading && (
+                        <span className='text-xs font-semibold' style={{ color: palette.mid }}>
+                            Loading all problems...
+                        </span>
+                    )}
+                    {!!error && (
+                        <span className='text-xs font-semibold text-red-500'>
+                            {error}
+                        </span>
+                    )}
                 </div>
             </header>
 
             <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4'>
                 <article className='rounded-xl border p-4' style={{ borderColor: palette.mid, backgroundColor: palette.main }}>
                     <p className='text-xs font-semibold uppercase tracking-wide' style={{ color: palette.mid }}>Filtered Problems</p>
-                    <p className='mt-1 text-2xl font-black'>{overview.total} (mock)</p>
+                    <p className='mt-1 text-2xl font-black'>{overview.total}</p>
                 </article>
                 <article className='rounded-xl border p-4' style={{ borderColor: palette.mid, backgroundColor: palette.main }}>
-                    <p className='text-xs font-semibold uppercase tracking-wide' style={{ color: palette.mid }}>Published</p>
-                    <p className='mt-1 text-2xl font-black'>{overview.published} (mock)</p>
+                    <p className='text-xs font-semibold uppercase tracking-wide' style={{ color: palette.mid }}>Completed</p>
+                    <p className='mt-1 text-2xl font-black'>{overview.published}</p>
                 </article>
                 <article className='rounded-xl border p-4' style={{ borderColor: palette.mid, backgroundColor: palette.main }}>
-                    <p className='text-xs font-semibold uppercase tracking-wide' style={{ color: palette.mid }}>In Review</p>
-                    <p className='mt-1 text-2xl font-black'>{overview.review} (mock)</p>
+                    <p className='text-xs font-semibold uppercase tracking-wide' style={{ color: palette.mid }}>In Progress</p>
+                    <p className='mt-1 text-2xl font-black'>{overview.review}</p>
                 </article>
                 <article className='rounded-xl border p-4' style={{ borderColor: palette.mid, backgroundColor: palette.main }}>
                     <p className='text-xs font-semibold uppercase tracking-wide' style={{ color: palette.mid }}>Avg Solve Rate</p>
-                    <p className='mt-1 text-2xl font-black'>{overview.avgSolveRate}% (mock)</p>
+                    <p className='mt-1 text-2xl font-black'>{overview.avgSolveRate}%</p>
                 </article>
             </div>
 
@@ -319,10 +408,6 @@ const AdminProblems = () => {
                         {options.statuses.map((value) => <option key={value} value={value}>{value}</option>)}
                     </select>
 
-                    <select value={author} onChange={(event) => setAuthor(event.target.value)} className='rounded-md border px-3 py-2 text-sm' style={{ borderColor: palette.mid, backgroundColor: palette.main }}>
-                        {options.authors.map((value) => <option key={value} value={value}>{value}</option>)}
-                    </select>
-
                     <input
                         type='date'
                         value={date}
@@ -339,7 +424,6 @@ const AdminProblems = () => {
                             setDifficulty('All');
                             setSource('All');
                             setStatus('All');
-                            setAuthor('All');
                             setDate('');
                         }}
                         className='rounded-md border px-3 py-2 text-sm font-semibold'
@@ -353,7 +437,7 @@ const AdminProblems = () => {
             <div className='grid grid-cols-1 gap-4 xl:grid-cols-5'>
                 <article className='rounded-xl border p-4 xl:col-span-3' style={{ borderColor: palette.mid, backgroundColor: palette.main }}>
                     <header className='mb-3 flex items-center justify-between'>
-                        <h3 className='text-sm font-semibold md:text-base'>Problem Flow (Created / Published / Flagged)</h3>
+                        <h3 className='text-sm font-semibold md:text-base'>Problem Flow (Created / Completed / In Progress)</h3>
                         <span className='rounded-md px-2 py-1 text-xs' style={{ backgroundColor: palette.french, color: palette.secondary }}>
                             {range === 'month' ? 'Last 30 days' : 'Last 7 days'}
                         </span>
@@ -405,7 +489,7 @@ const AdminProblems = () => {
                         {difficultyDistribution.map((item) => (
                             <div key={item.name} className='flex items-center gap-2'>
                                 <span className='h-2.5 w-2.5 rounded-full' style={{ backgroundColor: item.color }} />
-                                <span>{item.name}: {item.value} (mock)</span>
+                                <span>{item.name}: {item.value}</span>
                             </div>
                         ))}
                     </div>
@@ -437,16 +521,16 @@ const AdminProblems = () => {
                     <h3 className='mb-3 text-sm font-semibold md:text-base'>Review Queue Snapshot</h3>
                     <div className='space-y-2'>
                         <div className='rounded-lg border p-3' style={{ borderColor: palette.french }}>
-                            <p className='text-xs font-semibold' style={{ color: palette.mid }}>Needs Moderation</p>
-                            <p className='text-xl font-black'>14 (mock)</p>
+                            <p className='text-xs font-semibold' style={{ color: palette.mid }}>In Progress Problems</p>
+                            <p className='text-xl font-black'>{filteredProblems.filter((item) => item.status === 'In Progress').length}</p>
                         </div>
                         <div className='rounded-lg border p-3' style={{ borderColor: palette.french }}>
-                            <p className='text-xs font-semibold' style={{ color: palette.mid }}>Low Solve-Rate Problems</p>
-                            <p className='text-xl font-black'>9 (mock)</p>
+                            <p className='text-xs font-semibold' style={{ color: palette.mid }}>Low Solve-Rate Problems (&lt;50%)</p>
+                            <p className='text-xl font-black'>{filteredProblems.filter((item) => item.attempts > 0 && item.solveRate < 50).length}</p>
                         </div>
                         <div className='rounded-lg border p-3' style={{ borderColor: palette.french }}>
-                            <p className='text-xs font-semibold' style={{ color: palette.mid }}>Stale Drafts {'>'} 14 days</p>
-                            <p className='text-xl font-black'>6 (mock)</p>
+                            <p className='text-xs font-semibold' style={{ color: palette.mid }}>No Attempts Yet</p>
+                            <p className='text-xl font-black'>{filteredProblems.filter((item) => item.attempts === 0).length}</p>
                         </div>
                     </div>
                 </article>
@@ -456,9 +540,13 @@ const AdminProblems = () => {
                 <header className='mb-3 flex items-center justify-between gap-2'>
                     <h2 className='text-lg font-bold'>All Problems Table</h2>
                     <span className='rounded-md px-2 py-1 text-xs' style={{ backgroundColor: palette.french, color: palette.secondary }}>
-                        {filteredProblems.length} rows (mock)
+                        {filteredProblems.length} rows
                     </span>
                 </header>
+
+                <p className='mb-3 text-xs font-semibold' style={{ color: palette.mid }}>
+                    Loaded {loadMeta.fetched.toLocaleString()} / {loadMeta.count.toLocaleString()} problems in {loadMeta.pagesFetched.toLocaleString()} request(s). No table pagination is applied.
+                </p>
 
                 <div className='overflow-x-auto'>
                     <table className='min-w-full text-left text-sm'>
@@ -470,7 +558,6 @@ const AdminProblems = () => {
                                 <th className='pb-2 pr-4 font-semibold'>Difficulty</th>
                                 <th className='pb-2 pr-4 font-semibold'>Source</th>
                                 <th className='pb-2 pr-4 font-semibold'>Status</th>
-                                <th className='pb-2 pr-4 font-semibold'>Author</th>
                                 <th className='pb-2 pr-4 font-semibold'>Date</th>
                                 <th className='pb-2 pr-4 font-semibold'>Attempts</th>
                                 <th className='pb-2 font-semibold'>Solve Rate</th>
@@ -489,10 +576,9 @@ const AdminProblems = () => {
                                             {row.status}
                                         </span>
                                     </td>
-                                    <td className='py-2 pr-4'>{row.author}</td>
                                     <td className='py-2 pr-4'>{row.date}</td>
-                                    <td className='py-2 pr-4'>{row.attempts.toLocaleString()} (mock)</td>
-                                    <td className='py-2'>{row.solveRate}% (mock)</td>
+                                    <td className='py-2 pr-4'>{row.attempts.toLocaleString()}</td>
+                                    <td className='py-2'>{row.solveRate.toFixed(1)}%</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -501,7 +587,7 @@ const AdminProblems = () => {
 
                 {filteredProblems.length === 0 && (
                     <p className='mt-3 text-sm font-semibold' style={{ color: palette.accentDark }}>
-                        No mock problems matched current filters.
+                        No problems matched current filters.
                     </p>
                 )}
             </article>
