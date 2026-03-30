@@ -223,11 +223,32 @@ const NavigationBar = () => {
                             <ul className='flex items-center list-none h-[7.5vh] overflow-visible'>
                                 <li className='pl-3 sm:pl-4 lg:pl-4 shrink-0 hidden md:block text-[var(--secondary-color)]'>
                                     <Link to="/about"
-                                        className="px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 text-sm sm:text-base text-center text-gray-700 transition-colors hover:border-[var(--accent-color)] hover:!text-[var(--accent-color)]">Learn More</Link>
+                                        className="px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 text-sm sm:text-base text-center text-gray-700 transition-all hover:border-[var(--accent-color)] hover:!text-[var(--accent-color)]">Learn More</Link>
                                 </li>
                                 <li className='pl-3 sm:pl-4 lg:pl-4 shrink-0 hidden md:block text-[var(--secondary-color)]'>
-                                    <Link to="/learn"
-                                        className=" border-3 border-[var(--accent-color)] !text-[var(--accent-color)] px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 text-sm sm:text-base text-center transition-all duration-150 hover:!text-white hover:bg-[var(--accent-color)]  hover:border-[var(--accent-color)] ">Explore Problems</Link>
+                                    <Link
+                                        to="/learn"
+                                        className="relative inline-block px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 text-sm sm:text-base text-center 
+                                        !text-[var(--accent-color)] hover:!text-white transition-colors duration-150 group"
+                                        style={{ isolation: 'isolate' }}
+                                    >
+                                        {/* Gradient border + hover fill via pseudo layers */}
+                                        <span
+                                            aria-hidden="true"
+                                            className="absolute inset-0 rounded-[inherit] p-[2px] 
+                                            bg-[linear-gradient(360deg,var(--accent-color),var(--dark-accent-color))]
+                                            transition-opacity duration-150"
+                                            style={{ WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)', WebkitMaskComposite: 'xor', maskComposite: 'exclude' }}
+                                        />
+                                        {/* Hover fill layer */}
+                                        <span
+                                            aria-hidden="true"
+                                            className="absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100
+                                            bg-[linear-gradient(360deg,var(--accent-color),var(--dark-accent-color))]
+                                            transition-opacity duration-150 -z-10"
+                                        />
+                                        Explore Problems
+                                    </Link>
                                 </li>
                                 <li className='pl-3 sm:pl-4 lg:pl-4 shrink-0 hidden md:block text-[var(--secondary-color)]'>
                                     <Link to="/login"
