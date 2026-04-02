@@ -13,12 +13,13 @@ import LoadingSpinner from "./components/LoadingSpinner";
 import CookieConsent from "./components/CookieConsent";
 import { supabase } from "./lib/supabaseClient";
 import { useAuth } from "./hooks/useAuth";
-import { trackDailyActivity } from "./lib/activityTrackingService";
+import { trackActivityEvent, trackDailyActivity } from "./lib/activityTrackingService";
 import {
   initPostHog,
   identifyPostHogUser,
   resetPostHogUser,
-  capturePostHogEvent
+  capturePostHogEvent,
+  capturePostHogPageView
 } from "./lib/posthogClient";
 
 const Landing = lazy(() => import("./pages/Landing"));
@@ -130,6 +131,12 @@ export default function App() {
     initPostHog();
   }, []);
 
+  useEffect(() => {
+    void capturePostHogPageView(location.pathname, {
+      route: location.pathname
+    });
+  }, [location.pathname]);
+
   // Clean up old localStorage data to prevent conflicts with database
   useEffect(() => {
     const cleanupOldLocalStorage = async () => {
@@ -167,6 +174,9 @@ export default function App() {
         identifyPostHogUser(session.user);
         void capturePostHogEvent('user_signed_in', {
           email: session.user?.email || null
+        });
+        void trackActivityEvent('session_start', new Date(), {
+          route: window.location.pathname
         });
 
         // Check if we're not already on dashboard or a protected route

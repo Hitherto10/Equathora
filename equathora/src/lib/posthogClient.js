@@ -8,6 +8,10 @@ let isInitialized = false;
 const canUsePostHog = () =>
     typeof window !== 'undefined' && typeof POSTHOG_KEY === 'string' && POSTHOG_KEY.trim().length > 0;
 
+export function isPostHogEnabled() {
+    return canUsePostHog();
+}
+
 export function initPostHog() {
     if (isInitialized || !canUsePostHog()) {
         return false;
@@ -16,7 +20,8 @@ export function initPostHog() {
     posthog.init(POSTHOG_KEY, {
         api_host: POSTHOG_HOST,
         autocapture: true,
-        capture_pageview: false,
+        // Track first load and route changes for SPA navigation.
+        capture_pageview: 'history_change',
         capture_pageleave: true,
         person_profiles: 'identified_only'
     });
@@ -57,5 +62,19 @@ export function capturePostHogEvent(eventName, properties = {}) {
     }
 
     posthog.capture(eventName, properties);
+    return true;
+}
+
+export function capturePostHogPageView(pathname, properties = {}) {
+    if (!ensurePostHogReady()) {
+        return false;
+    }
+
+    posthog.capture('$pageview', {
+        path: pathname || (typeof window !== 'undefined' ? window.location.pathname : '/'),
+        source: 'equathora_web',
+        ...properties
+    });
+
     return true;
 }
