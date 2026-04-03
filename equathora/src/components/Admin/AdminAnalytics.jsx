@@ -106,6 +106,10 @@ const AdminAnalytics = () => {
                     weekOffset: range === 'week' ? weekIndex : 0
                 });
 
+                if (data?.__fetchError) {
+                    setError(data.__fetchError);
+                }
+
                 if (!isMounted) return;
                 setAnalytics({
                     ...emptyAnalytics,

@@ -1,5 +1,36 @@
 const DEFAULT_LOCAL_BACKEND = 'http://localhost:5104';
 
+const emptyAnalyticsPayload = {
+    rangeLabel: 'Analytics temporarily unavailable',
+    trends: [],
+    overview: {
+        avgDau: 0,
+        totalSignups: 0,
+        totalSolved: 0,
+        totalReports: 0,
+        reportsPerThousand: 0
+    },
+    kpis: {
+        dailyActiveUsers: 0,
+        weeklyActiveUsers: 0,
+        newSignups: 0,
+        retentionD7: 0,
+        solvedProblems: 0,
+        reportCount: 0
+    },
+    retention: [],
+    issueDistribution: [],
+    systemHealth: [
+        {
+            label: 'Backend analytics',
+            value: 'Unavailable',
+            status: 'Watch'
+        }
+    ],
+    moderationAlerts: [],
+    topTopics: []
+};
+
 const normalizeBase = (value) => {
     if (!value || typeof value !== 'string') return '';
     return value.trim().replace(/\/$/, '');
@@ -11,7 +42,11 @@ const isJsonContentType = (contentType) => {
 };
 
 const buildApiBaseCandidates = () => {
-    const explicit = normalizeBase(import.meta.env.VITE_API_URL);
+    const explicit = normalizeBase(
+        import.meta.env.VITE_API_URL ||
+        import.meta.env.VITE_BACKEND_URL ||
+        import.meta.env.VITE_API_BASE_URL
+    );
     const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
     const isLocalRuntime = runtimeHost === 'localhost' || runtimeHost === '127.0.0.1';
 
@@ -21,7 +56,9 @@ const buildApiBaseCandidates = () => {
         candidates.push(explicit);
     }
 
-    candidates.push('');
+    if (!explicit || isLocalRuntime) {
+        candidates.push('');
+    }
 
     if (isLocalRuntime && !explicit) {
         candidates.push(DEFAULT_LOCAL_BACKEND);
@@ -101,11 +138,14 @@ export async function getAdminAnalytics({ range = 'week', weekOffset = 0 } = {})
         }
     }
 
-    throw new Error(
-        [
+    return {
+        ...emptyAnalyticsPayload,
+        range,
+        weekOffset: Math.max(0, Number(weekOffset) || 0),
+        __fetchError: [
             'Failed to fetch admin analytics from all configured endpoints.',
-            'Set VITE_API_URL to your backend origin in production.',
+            'If backend is on another domain, set one of: VITE_API_URL, VITE_BACKEND_URL, or VITE_API_BASE_URL.',
             ...failures
         ].join(' ')
-    );
+    };
 }

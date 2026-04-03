@@ -13,7 +13,11 @@ const isJsonContentType = (contentType) => {
 };
 
 const buildApiBaseCandidates = () => {
-    const explicit = normalizeBase(import.meta.env.VITE_API_URL);
+    const explicit = normalizeBase(
+        import.meta.env.VITE_API_URL ||
+        import.meta.env.VITE_BACKEND_URL ||
+        import.meta.env.VITE_API_BASE_URL
+    );
     const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
     const isLocalRuntime = runtimeHost === 'localhost' || runtimeHost === '127.0.0.1';
 

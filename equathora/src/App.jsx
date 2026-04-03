@@ -1,7 +1,5 @@
-import axios from "axios";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -126,6 +124,22 @@ function PageTitleUpdater() {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const canUseSpeedInsights = useMemo(() => {
+    const isEnabled = import.meta.env.VITE_ENABLE_SPEED_INSIGHTS === "true";
+    if (!isEnabled || typeof window === "undefined") {
+      return false;
+    }
+
+    const perf = window.performance;
+    return Boolean(
+      perf &&
+      typeof perf.mark === "function" &&
+      typeof perf.measure === "function" &&
+      typeof perf.clearMarks === "function" &&
+      typeof perf.clearMeasures === "function"
+    );
+  }, []);
 
   useEffect(() => {
     initPostHog();
@@ -275,7 +289,12 @@ export default function App() {
 
       {/* Analytics */}
       <Analytics />
-      <SpeedInsights />
+      {canUseSpeedInsights ? <LazySpeedInsights /> : null}
     </>
   );
 }
+
+const LazySpeedInsights = lazy(async () => {
+  const module = await import("@vercel/speed-insights/react");
+  return { default: module.SpeedInsights };
+});

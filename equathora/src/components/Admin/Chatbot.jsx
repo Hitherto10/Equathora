@@ -2,23 +2,43 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 const Chatbot = () => {
-    const [messages, setMessages] = useState([])
-    const [input, setInput] = useState("")
+    const [messages, setMessages] = useState([]);
+    const [input, setInput] = useState('');
+    const [isSending, setIsSending] = useState(false);
 
-    const sendMessages = async () => {
-        const newMessages = [...messages, { text: input, user: "me" }];
-        setMessages(newMessges);
-        setInput("");
+    const sendMessage = async () => {
+        const trimmedInput = input.trim();
+        if (!trimmedInput || isSending) return;
 
-        const response = await axios.post("", {
-            prompt: input,
-            max_tokens: 150,
-            model: "deepseek-v3.2",
-        });
+        const userMessage = { text: trimmedInput, user: 'me' };
+        const nextMessages = [...messages, userMessage];
+        setMessages(nextMessages);
+        setInput('');
+        setIsSending(true);
 
-        const botMessage = response.data.choice[0].text;
-        setMessages([...newMessages, { text: botMessage, user: "bot" }]);
-    }
+        try {
+            const endpoint = import.meta.env.VITE_ADMIN_CHATBOT_URL || '/api/admin/solution-generator';
+            const response = await axios.post(endpoint, {
+                prompt: trimmedInput,
+                max_tokens: 150,
+                model: 'deepseek-v3.2'
+            });
+
+            const botMessage =
+                response?.data?.choices?.[0]?.text
+                || response?.data?.choice?.[0]?.text
+                || response?.data?.reply
+                || 'No response received from the model.';
+
+            setMessages((prev) => [...prev, { text: botMessage, user: 'bot' }]);
+        } catch (error) {
+            const message = error?.response?.data?.message || error?.message || 'Failed to generate a response.';
+            setMessages((prev) => [...prev, { text: `Error: ${message}`, user: 'bot' }]);
+        } finally {
+            setIsSending(false);
+        }
+    };
+
     return (
         <div>
             <div>
@@ -31,7 +51,9 @@ const Chatbot = () => {
             <input type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessages()} />
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                disabled={isSending}
+            />
         </div>
     );
 };
