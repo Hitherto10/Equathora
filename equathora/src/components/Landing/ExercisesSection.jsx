@@ -135,9 +135,9 @@ const ExercisesSection = () => {
                                         </motion.svg>
                                     </span>
                                 </h2>
-                                <p className="text-3xl sm:text-3xl md:text-4xl lg:text-4xl font-extrabold text-[var(--secondary-color)] pb-4">
+                                <h2 className="text-3xl sm:text-3xl md:text-4xl lg:text-4xl font-extrabold text-[var(--secondary-color)] pb-4">
                                     From "Algebra Basics" to "Calculus Puzzles".
-                                </p>
+                                </h2>
                                 <p className="text-sm sm:text-xl md:text-2xl max-w-3xl font-light">
                                     Learn by doing. Get better at mathematics through fun problem-solving that builds your understanding of concepts.
                                 </p>

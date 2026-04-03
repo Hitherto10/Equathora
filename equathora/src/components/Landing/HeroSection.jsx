@@ -94,7 +94,7 @@ const HeroSection = () => {
 
     return (
         <section
-            className="font-[Sansation] w-full bg-[var(--main-color)] relative overflow-hidden min-h-screen flex items-center justify-center"
+            className="font-[Sansation] w-full bg-[var(--main-color)] relative overflow-hidden flex items-center justify-center"
             style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/gplay.png")', backgroundBlendMode: 'overlay', opacity: 0.98 }}
         >
             {/* Background decorations */}
@@ -126,7 +126,7 @@ const HeroSection = () => {
             <Particles />
 
             <div className="relative z-10 w-full flex justify-center">
-                <div className="px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32 max-w-[1400px] pt-40 pb-[28px] sm:pt-24 md:pt-30 lg:pt-20 flex flex-col lg:flex-row items-center justify-center gap-6 sm:gap-10 md:gap-11 lg:gap-16 xl:gap-16 w-full min-h-screen">
+                <div className="px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32 max-w-[1400px] pt-40 pb-[28px] sm:pt-24 md:pt-30 lg:pt-20 xl:pt-40 flex flex-col lg:flex-row items-center justify-center gap-6 sm:gap-10 md:gap-11 lg:gap-16 xl:gap-16 w-full">
 
                     {/* Left Content - Centered */}
                     <motion.div
