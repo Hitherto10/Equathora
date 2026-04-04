@@ -157,12 +157,12 @@ a {
 }
 
 input[type="text"]:-webkit-autofill,
-input[type="text"]:-webkit-autofill:focus,
+input[type="text"]:-webkit-autofill:active,
 input[type="text"]:-webkit-autofill:focus,
 input[type="text"]:-webkit-autofill:hover,
 input[type="email"]:-webkit-autofill,
-input[type="email"]:-webkit-autofill,
-input[type="email"]:-webkit-autofill,
+input[type="email"]:-webkit-autofill:hover,
+input[type="email"]:-webkit-autofill:active,
 input[type="email"]:-webkit-autofill:focus,
 .inputAuth:-webkit-autofill,
 .inputAuth:-webkit-autofill:hover,

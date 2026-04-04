@@ -103,7 +103,14 @@ builder.Services.AddCors(options =>
     });
     options.AddPolicy("Production", policy =>
     {
-        policy.WithOrigins("https://equathora.com", "https://www.equathora.com")
+        policy.SetIsOriginAllowed(origin =>
+              {
+                  if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+                  var host = uri.Host.ToLowerInvariant();
+                  return host == "equathora.com"
+                      || host == "www.equathora.com"
+                      || host.EndsWith(".vercel.app");
+              })
               .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH")
               .AllowAnyHeader()
               .AllowCredentials();

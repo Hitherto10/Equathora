@@ -24,7 +24,6 @@ import { getDailyProblemSlug } from '../../lib/utils';
 import Books from '../../assets/images/learningBooks.svg';
 
 const NavigationBar = () => {
-    text: "Equathora Briefs",
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [dailyProblemSlug, setDailyProblemSlug] = useState('');
 

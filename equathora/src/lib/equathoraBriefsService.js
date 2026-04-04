@@ -17,12 +17,14 @@ const buildApiBaseCandidates = () => {
 
     const candidates = [];
 
-    if (explicit) {
-        candidates.push(explicit);
-    }
+    // Prefer same-origin first so local Vite proxy and reverse proxies work automatically.
+    candidates.push('');
 
-    if (!explicit || isLocalRuntime) {
-        candidates.push('');
+    if (explicit) {
+        const isLocalExplicit = explicit.includes('://localhost') || explicit.includes('://127.0.0.1');
+        if (isLocalRuntime || !isLocalExplicit) {
+            candidates.push(explicit);
+        }
     }
 
     if (isLocalRuntime && !explicit) {
@@ -71,5 +73,8 @@ export async function subscribeToEquathoraBriefs({ full_name, email }) {
         }
     }
 
-    throw new Error(failures[0] || 'Could not save your signup. Please try again.');
+    throw new Error(
+        failures[0] ||
+        'Could not save your signup. Please try again. If this persists, set VITE_API_URL to your backend origin.'
+    );
 }
