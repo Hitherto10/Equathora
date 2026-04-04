@@ -9,6 +9,7 @@ import AdminAnnouncements from '@/components/Admin/AdminAnnouncements';
 import AdminSolutionGenerator from '@/components/Admin/AdminSolutionGenerator';
 import AdminFinance from '@/components/Admin/AdminFinance';
 import AdminLogs from '@/components/Admin/AdminLogs';
+import AdminEmailBriefs from '@/components/Admin/AdminEmailBriefs';
 
 const TAB_COMPONENTS = {
     analytics: <AdminAnalytics />,
@@ -18,6 +19,7 @@ const TAB_COMPONENTS = {
     solutionGenerator: <AdminSolutionGenerator />,
     finance: <AdminFinance />,
     logs: <AdminLogs />,
+    emailBriefs: <AdminEmailBriefs />
 }
 
 const TAB_DATA_SOURCE = {
@@ -27,7 +29,8 @@ const TAB_DATA_SOURCE = {
     announcements: 'Mock',
     solutionGenerator: 'Mock',
     finance: 'Mock',
-    logs: 'Mock'
+    logs: 'Mock',
+    emailBriefs: 'Real',
 };
 
 const AdminDashboard = () => {
@@ -58,6 +61,7 @@ const AdminDashboard = () => {
         { id: 'solutionGenerator', label: 'Solution Generator' },
         { id: 'finance', label: 'Finance' },
         { id: 'logs', label: 'Logs' },
+        { id: 'emailBriefs', label: 'Email Briefs' },
     ]
     return (
         <>
