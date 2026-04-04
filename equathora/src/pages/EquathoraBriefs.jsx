@@ -5,12 +5,13 @@ import { FaUsers, FaCheckCircle, FaBolt } from 'react-icons/fa';
 import { FaStar, FaCrown, FaRocket, FaShieldAlt } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import EquathoraBriefsModal from '@/components/EquathoraBriefs/EquathoraBriefsModal.jsx';
+import { subscribeToEquathoraBriefs } from '@/lib/equathoraBriefsService.js';
 
 const EquathoraBriefsPage = () => {
     const [isBriefsModalOpen, setIsBriefsModalOpen] = useState(false);
 
-    const handleEquathoraBriefsSave = () => {
-        // Placeholder callback for future persistence.
+    const handleEquathoraBriefsSave = async (formData) => {
+        await subscribeToEquathoraBriefs(formData);
     };
 
     return (

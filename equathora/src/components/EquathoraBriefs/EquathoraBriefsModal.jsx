@@ -85,7 +85,7 @@ const EquathoraBriefsModal = ({ onClose, isOpen, onSave, userData }) => {
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                            <form onSubmit={handleSubmit} className="p-6 ">
                                 <div className="flex justify-center">
                                     <img src={TransparentFullLogo} alt="Equathora" className="h-14 w-auto" />
                                 </div>

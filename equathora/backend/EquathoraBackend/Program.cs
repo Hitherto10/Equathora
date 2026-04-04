@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
@@ -242,6 +243,47 @@ app.MapPost("/api/auth/reset-password", async (ResetPasswordRequest req, AppDbCo
     await db.SaveChangesAsync();
 
     return Results.Ok(new { message = "Password reset successfully" });
+});
+
+app.MapPost("/api/briefs/subscribe", async (BriefsSubscriptionRequest req, AppDbContext db) =>
+{
+    var normalizedName = req.FullName?.Trim() ?? string.Empty;
+    var normalizedEmail = (req.Email ?? string.Empty).Trim().ToLowerInvariant();
+
+    if (string.IsNullOrWhiteSpace(normalizedName) || normalizedName.Length > 255)
+    {
+        return Results.BadRequest(new { error = "Please provide a valid full name." });
+    }
+
+    if (string.IsNullOrWhiteSpace(normalizedEmail) || normalizedEmail.Length > 255)
+    {
+        return Results.BadRequest(new { error = "Please provide a valid email address." });
+    }
+
+    if (!Regex.IsMatch(normalizedEmail, "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)))
+    {
+        return Results.BadRequest(new { error = "Please provide a valid email address." });
+    }
+
+    try
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT INTO public.equathora_briefs_list (name, email)
+            VALUES ({normalizedName}, {normalizedEmail})
+            ON CONFLICT (email)
+            DO UPDATE SET
+                name = EXCLUDED.name,
+                created_at = LEAST(public.equathora_briefs_list.created_at, EXCLUDED.created_at);
+        ");
+
+        return Results.Ok(new { message = "Subscribed successfully." });
+    }
+    catch (Exception)
+    {
+        return Results.Problem(
+            detail: "Unable to save subscription right now.",
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
 });
 
 // Simple protected endpoint to verify JWT works
@@ -1491,3 +1533,5 @@ sealed class AnalyticsCountRow
 {
     public int Count { get; set; }
 }
+
+sealed record BriefsSubscriptionRequest(string FullName, string Email);
