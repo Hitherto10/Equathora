@@ -156,6 +156,30 @@ a {
   background: var(--secondary-color);
 }
 
+input[type="text"]:-webkit-autofill,
+input[type="text"]:-webkit-autofill:focus,
+input[type="text"]:-webkit-autofill:focus,
+input[type="text"]:-webkit-autofill:hover,
+input[type="email"]:-webkit-autofill,
+input[type="email"]:-webkit-autofill,
+input[type="email"]:-webkit-autofill,
+input[type="email"]:-webkit-autofill:focus,
+.inputAuth:-webkit-autofill,
+.inputAuth:-webkit-autofill:hover,
+.inputAuth:-webkit-autofill:focus,
+.inputAuth:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
+.inputAuth:-moz-autofill {
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -moz-text-fill-color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
 /* 
 :focus {
   outline: 2px solid #007cba;
