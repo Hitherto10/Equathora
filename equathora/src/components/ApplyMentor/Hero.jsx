@@ -6,7 +6,7 @@ import teacherSvg from '../../assets/images/teacher.svg';
 import GradientText from '../ui/GradientText';
 import { FaCheckCircle, FaArrowRight, FaUsers, FaHeart, FaStar } from 'react-icons/fa';
 
-const Hero = () => {
+const Hero = ({ onOpenBriefsModal }) => {
     return (
         <section className='relative  bg-[linear-gradient(180deg,var(--secondary-color),var(--accent-color)130%)] text-white flex justify-center overflow-hidden'>
             {/* Decorative Elements */}
@@ -61,16 +61,15 @@ const Hero = () => {
                                 transition={{ duration: 0.5, delay: 0.25 }}
                                 className='flex flex-col gap-4 justify-center lg:justify-start pt-2'
                             >
-                                <a
-                                    href='https://docs.google.com/forms/d/e/1FAIpQLSdLLApMvE_dJdllHd0U4YxFFQ6K7YasS4I-xO1mDG9SFCariw/viewform'
-                                    target='_blank'
-                                    rel='noopener noreferrer'
+                                <button
+                                    type='button'
+                                    onClick={onOpenBriefsModal}
                                     className='group relative bg-[var(--main-color)] hover:bg-gray-300 !text-[var(--accent-color)] px-8 py-3 rounded-md !font-bold text-sm md:text-base overflow-hidden transition-all flex items-center justify-center gap-2 no-underline shadow-lg hover:shadow-xl w-full sm:w-auto'
                                 >
                                     <FaUsers />
                                     <span className='relative z-10'>Join 50+ Educators</span>
                                     <FaArrowRight className='relative z-10 text-xs' />
-                                </a>
+                                </button>
 
                                 {/* Trust Indicators */}
                                 <div className='flex flex-wrap items-center justify-center lg:justify-start gap-3 text-xs text-gray-400'>

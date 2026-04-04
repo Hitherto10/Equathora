@@ -180,6 +180,10 @@ input[type="email"]:-webkit-autofill:focus,
   background-color: #ffffff !important;
 }
 
+button{
+  cursor: pointer;
+}
+
 /* 
 :focus {
   outline: 2px solid #007cba;

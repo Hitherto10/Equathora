@@ -1,23 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import Hero from '../components/ApplyMentor/Hero';
 import Footer from '../components/Footer';
+import EquathoraBriefsModal from '@/components/EquathoraBriefs/EquathoraBriefsModal.jsx';
 import skate from '../assets/images/skate.svg';
 import parents from '../assets/images/parents.svg';
 import teachers from '../assets/images/teachers.svg';
 import mentoring from '../assets/images/mentoring.svg';
 import achievements from '../assets/images/achievements.svg';
+import { subscribeToEquathoraBriefs } from '@/lib/equathoraBriefsService.js';
+import { useAuth } from '@/hooks/useAuth.js';
 import { Link } from 'react-router-dom';
 import { FaCheckCircle, FaUsers, FaChalkboardTeacher, FaHeart, FaArrowRight, FaStar, FaGraduationCap } from 'react-icons/fa';
 
 const ApplyMentor = () => {
+    const [isBriefsModalOpen, setIsBriefsModalOpen] = useState(false);
+    const { user } = useAuth() || {};
+
+    const handleEquathoraBriefsSave = async (formData) => {
+        try {
+            await subscribeToEquathoraBriefs(formData);
+        } catch (err) {
+            console.error('Subscribe error:', err);
+            throw err;
+        }
+    };
+
     return (
         <div className='text-[var(--secondary-color)] font-[Sansation] w-full bg-[var(--main-color)]'>
             <header><Navbar /></header>
 
             {/* Hero Section */}
-            <Hero />
+            <Hero onOpenBriefsModal={() => setIsBriefsModalOpen(true)} />
 
             {/* Benefits Section */}
             <section className='flex justify-center w-full'>
@@ -234,16 +249,15 @@ const ApplyMentor = () => {
                             </p>
 
                             <div className='flex flex-col gap-3'>
-                                <a
-                                    href='https://docs.google.com/forms/d/e/1FAIpQLSdLLApMvE_dJdllHd0U4YxFFQ6K7YasS4I-xO1mDG9SFCariw/viewform'
-                                    target='_blank'
-                                    rel='noopener noreferrer'
-                                    className='bg-[var(--main-color)] hover:bg-gray-300 !text-[var(--accent-color)] px-8 py-4 rounded-md !font-bold text-base flex items-center justify-center gap-2 no-underline shadow-lg transition-colors duration-200 w-full sm:w-auto'
+                                <button
+                                    type='button'
+                                    onClick={() => setIsBriefsModalOpen(true)}
+                                    className='bg-[var(--main-color)] hover:bg-gray-300 !text-[var(--accent-color)] px-8 py-4 rounded-md !font-bold text-base flex items-center justify-center gap-2 no-underline shadow-lg transition-colors duration-200 w-full sm:w-auto cursor-pointer'
                                 >
                                     <FaUsers />
                                     <span>Join Equathora Briefs</span>
                                     <FaArrowRight className='text-sm' />
-                                </a>
+                                </button>
 
                                 <div className='flex flex-wrap items-center justify-center lg:justify-start gap-3 text-xs text-gray-300'>
                                     <div className='flex items-center gap-1.5'>
@@ -275,6 +289,14 @@ const ApplyMentor = () => {
 
             {/* Footer */}
             <footer><Footer /></footer>
+
+            <EquathoraBriefsModal
+                isOpen={isBriefsModalOpen}
+                onClose={() => setIsBriefsModalOpen(false)}
+                onSave={handleEquathoraBriefsSave}
+                userData={user ? { name: user.user_metadata?.full_name || '', email: user.email } : null}
+            />
+
             <div className='w-full bg-[var(--secondary-color)] border-t border-white/10 flex justify-center py-5 text-white/60 text-xs'>
                 <a href="https://storyset.com/education" target="_blank" rel="noopener noreferrer" className='hover:text-white/80 transition-colors no-underline'>
                     Education illustrations by Storyset
