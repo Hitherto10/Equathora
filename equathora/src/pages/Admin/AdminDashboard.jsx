@@ -27,7 +27,7 @@ const TAB_DATA_SOURCE = {
     problems: 'Real',
     users: 'Real',
     announcements: 'Mock',
-    solutionGenerator: 'Mock',
+    solutionGenerator: 'Local',
     finance: 'Mock',
     logs: 'Mock',
     emailBriefs: 'Real',

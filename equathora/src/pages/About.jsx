@@ -19,7 +19,7 @@ const About = () => {
                 <AboutMissionSection />
                 <AboutFeaturesSection />
                 <AboutCtaSection />
-            </main>
+            </main>``
             <Footer />
         </div>
     );
