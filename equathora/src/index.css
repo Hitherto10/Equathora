@@ -184,6 +184,10 @@ button{
   cursor: pointer;
 }
 
+select{
+  cursor: pointer;
+}
+
 /* 
 :focus {
   outline: 2px solid #007cba;

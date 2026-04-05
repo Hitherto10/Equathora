@@ -23,6 +23,8 @@ const DEFAULTS = {
     pythonCmd: 'python'
 };
 
+const PROGRESS_STORAGE_KEY = 'equathora_admin_solution_generator_progress_v1';
+
 const normalizePositiveInt = (value, fallback) => {
     const parsed = Number.parseInt(String(value), 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
@@ -78,6 +80,46 @@ const readJsonFile = async (file) => {
     return JSON.parse(text);
 };
 
+const loadProgressStore = () => {
+    try {
+        const raw = window.localStorage.getItem(PROGRESS_STORAGE_KEY);
+        if (!raw) return { runs: {} };
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || typeof parsed.runs !== 'object') {
+            return { runs: {} };
+        }
+
+        return parsed;
+    } catch {
+        return { runs: {} };
+    }
+};
+
+const persistProgressStore = (store) => {
+    try {
+        window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(store));
+    } catch {
+        // Ignore storage write failures (private mode/quota), keep in-memory state.
+    }
+};
+
+const buildRunKey = (payload, fallbackFileName) => {
+    const metadata = payload?.metadata || {};
+    const source = metadata.source_pdf || fallbackFileName || 'unknown-source';
+    const start = metadata.requested_page_start || payload?.batches?.[0]?.page_start || 'x';
+    const end = metadata.requested_page_end || payload?.batches?.[payload?.batches?.length - 1]?.page_end || 'y';
+    return `${source}::${start}-${end}`;
+};
+
+const enumerateBatchPages = (batch) => {
+    if (!batch) return [];
+    const start = normalizePositiveInt(batch.page_start, 0);
+    const end = normalizePositiveInt(batch.page_end, 0);
+    if (!start || !end || end < start) return [];
+    return Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
+};
+
 const AdminSolutionGenerator = () => {
     const [config, setConfig] = useState(DEFAULTS);
     const [loadedFileName, setLoadedFileName] = useState('');
@@ -85,11 +127,52 @@ const AdminSolutionGenerator = () => {
     const [batchIndex, setBatchIndex] = useState(0);
     const [notice, setNotice] = useState('');
     const [error, setError] = useState('');
+    const [progressStore, setProgressStore] = useState(loadProgressStore);
 
     const batches = loadedPayload?.batches || [];
     const currentBatch = batches[batchIndex] || null;
     const canMoveNext = batchIndex < batches.length - 1;
     const canMovePrev = batchIndex > 0;
+    const currentRunKey = useMemo(() => buildRunKey(loadedPayload, loadedFileName), [loadedPayload, loadedFileName]);
+    const currentRunProgress = progressStore?.runs?.[currentRunKey] || { doneBatchIndexes: [], note: '', lastBatchIndex: 0 };
+    const doneBatchSet = useMemo(() => new Set(currentRunProgress.doneBatchIndexes || []), [currentRunProgress.doneBatchIndexes]);
+
+    const totalPagesInQueue = useMemo(() => {
+        const pageSet = new Set();
+        batches.forEach((batch) => {
+            enumerateBatchPages(batch).forEach((page) => pageSet.add(page));
+        });
+        return pageSet.size;
+    }, [batches]);
+
+    const donePagesInQueue = useMemo(() => {
+        const pageSet = new Set();
+        batches.forEach((batch, idx) => {
+            if (!doneBatchSet.has(idx)) return;
+            enumerateBatchPages(batch).forEach((page) => pageSet.add(page));
+        });
+        return pageSet.size;
+    }, [batches, doneBatchSet]);
+
+    const lifetimePagesCovered = useMemo(() => {
+        const runs = progressStore?.runs || {};
+        let total = 0;
+
+        Object.values(runs).forEach((runEntry) => {
+            const runBatches = Array.isArray(runEntry?.batchesSnapshot) ? runEntry.batchesSnapshot : [];
+            const doneIndexes = new Set(runEntry?.doneBatchIndexes || []);
+            const pageSet = new Set();
+
+            runBatches.forEach((batch, idx) => {
+                if (!doneIndexes.has(idx)) return;
+                enumerateBatchPages(batch).forEach((page) => pageSet.add(page));
+            });
+
+            total += pageSet.size;
+        });
+
+        return total;
+    }, [progressStore]);
 
     const runCommand = useMemo(() => {
         return buildRunCommand({
@@ -106,6 +189,47 @@ const AdminSolutionGenerator = () => {
 
     const setField = (key, value) => {
         setConfig((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const updateRunProgress = (updater) => {
+        if (!currentRunKey) return;
+
+        setProgressStore((prev) => {
+            const safeStore = prev && typeof prev === 'object' ? prev : { runs: {} };
+            const current = safeStore.runs?.[currentRunKey] || { doneBatchIndexes: [], note: '', lastBatchIndex: 0, batchesSnapshot: [] };
+            const nextEntry = updater(current);
+            const nextStore = {
+                ...safeStore,
+                runs: {
+                    ...(safeStore.runs || {}),
+                    [currentRunKey]: nextEntry
+                }
+            };
+            persistProgressStore(nextStore);
+            return nextStore;
+        });
+    };
+
+    const markBatchDone = (index, done) => {
+        updateRunProgress((entry) => {
+            const set = new Set(entry.doneBatchIndexes || []);
+            if (done) set.add(index);
+            else set.delete(index);
+            return {
+                ...entry,
+                doneBatchIndexes: [...set].sort((a, b) => a - b),
+                lastBatchIndex: index,
+                batchesSnapshot: batches
+            };
+        });
+    };
+
+    const setRunNote = (note) => {
+        updateRunProgress((entry) => ({
+            ...entry,
+            note,
+            batchesSnapshot: batches
+        }));
     };
 
     const copyText = async (value, successMessage) => {
@@ -133,11 +257,34 @@ const AdminSolutionGenerator = () => {
                 throw new Error('Invalid file. Expected JSON with a batches array.');
             }
 
+            const incomingRunKey = buildRunKey(parsed, file.name);
+            const incomingProgress = progressStore?.runs?.[incomingRunKey];
+
             setLoadedPayload(parsed);
             setLoadedFileName(file.name);
-            setBatchIndex(0);
+            setBatchIndex(normalizePositiveInt(incomingProgress?.lastBatchIndex, 0));
             setNotice(`Loaded ${parsed.batches.length} batch(es) from ${file.name}.`);
             setError('');
+
+            if (!incomingProgress) {
+                setProgressStore((prev) => {
+                    const safeStore = prev && typeof prev === 'object' ? prev : { runs: {} };
+                    const nextStore = {
+                        ...safeStore,
+                        runs: {
+                            ...(safeStore.runs || {}),
+                            [incomingRunKey]: {
+                                doneBatchIndexes: [],
+                                note: '',
+                                lastBatchIndex: 0,
+                                batchesSnapshot: parsed.batches
+                            }
+                        }
+                    };
+                    persistProgressStore(nextStore);
+                    return nextStore;
+                });
+            }
         } catch (fileError) {
             setLoadedPayload(null);
             setLoadedFileName('');
@@ -157,6 +304,7 @@ const AdminSolutionGenerator = () => {
 
         try {
             await navigator.clipboard.writeText(currentBatch.prompt_text);
+            markBatchDone(batchIndex, true);
             if (canMoveNext) {
                 setBatchIndex((prev) => prev + 1);
                 setNotice(`${formatBatchLabel(currentBatch, batchIndex)} copied. Moved to next batch.`);
@@ -322,6 +470,23 @@ const AdminSolutionGenerator = () => {
                     </p>
                 </div>
 
+                {!!batches.length && (
+                    <div className='mt-3 grid grid-cols-1 gap-3 rounded-md border p-3 md:grid-cols-3' style={{ borderColor: 'var(--mid-main-secondary)', backgroundColor: 'var(--french-gray)' }}>
+                        <div>
+                            <p className='text-xs uppercase tracking-wide text-[var(--mid-main-secondary)]'>Batches Completed</p>
+                            <p className='text-lg font-black'>{doneBatchSet.size} / {batches.length}</p>
+                        </div>
+                        <div>
+                            <p className='text-xs uppercase tracking-wide text-[var(--mid-main-secondary)]'>Pages Covered (Current Queue)</p>
+                            <p className='text-lg font-black'>{donePagesInQueue} / {totalPagesInQueue}</p>
+                        </div>
+                        <div>
+                            <p className='text-xs uppercase tracking-wide text-[var(--mid-main-secondary)]'>Pages Covered (Lifetime)</p>
+                            <p className='text-lg font-black'>{lifetimePagesCovered}</p>
+                        </div>
+                    </div>
+                )}
+
                 {currentBatch ? (
                     <>
                         <div className='mt-3 flex flex-wrap items-center gap-2'>
@@ -364,6 +529,15 @@ const AdminSolutionGenerator = () => {
                             >
                                 Next
                             </button>
+
+                            <button
+                                type='button'
+                                onClick={() => markBatchDone(batchIndex, !doneBatchSet.has(batchIndex))}
+                                className='rounded-md border px-3 py-2 text-sm font-semibold'
+                                style={{ borderColor: doneBatchSet.has(batchIndex) ? 'var(--secondary-color)' : 'var(--mid-main-secondary)' }}
+                            >
+                                {doneBatchSet.has(batchIndex) ? 'Marked Done' : 'Mark Done'}
+                            </button>
                         </div>
 
                         <p className='mt-3 text-sm font-semibold'>
@@ -377,6 +551,17 @@ const AdminSolutionGenerator = () => {
                             className='mt-3 min-h-72 w-full rounded-md border bg-[var(--french-gray)] p-3 text-xs md:text-sm'
                             style={{ borderColor: 'var(--mid-main-secondary)' }}
                         />
+
+                        <div className='mt-3'>
+                            <p className='mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--mid-main-secondary)]'>Run Notes</p>
+                            <textarea
+                                value={currentRunProgress.note || ''}
+                                onChange={(event) => setRunNote(event.target.value)}
+                                placeholder='Example: Completed page 1-16 today, continue from batch 9 tomorrow.'
+                                className='min-h-24 w-full rounded-md border bg-[var(--french-gray)] p-3 text-xs md:text-sm'
+                                style={{ borderColor: 'var(--mid-main-secondary)' }}
+                            />
+                        </div>
                     </>
                 ) : (
                     <p className='mt-3 text-sm text-[var(--mid-main-secondary)]'>No queue loaded yet.</p>
