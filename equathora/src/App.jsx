@@ -152,34 +152,34 @@ export default function App() {
   }, [location.pathname]);
 
   // Clean up old localStorage data to prevent conflicts with database
-  useEffect(() => {
-    const cleanupOldLocalStorage = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          // Clear old localStorage progress data (now using database)
-          const keysToRemove = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (
-              key.includes('equathora_completed_problems') ||
-              key.includes('COMPLETED_PROBLEMS')
-            )) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach(key => {
-            console.log('Clearing old localStorage key:', key);
-            localStorage.removeItem(key);
-          });
-        }
-      } catch (error) {
-        console.error('Error cleaning localStorage:', error);
-      }
-    };
+  // useEffect(() => {
+  //   const cleanupOldLocalStorage = async () => {
+  //     try {
+  //       const { data: { session } } = await supabase.auth.getSession();
+  //       if (session) {
+  //         // Clear old localStorage progress data (now using database)
+  //         const keysToRemove = [];
+  //         for (let i = 0; i < localStorage.length; i++) {
+  //           const key = localStorage.key(i);
+  //           if (key && (
+  //             key.includes('equathora_completed_problems') ||
+  //             key.includes('COMPLETED_PROBLEMS')
+  //           )) {
+  //             keysToRemove.push(key);
+  //           }
+  //         }
+  //         keysToRemove.forEach(key => {
+  //           console.log('Clearing old localStorage key:', key);
+  //           localStorage.removeItem(key);
+  //         });
+  //       }
+  //     } catch (error) {
+  //       console.error('Error cleaning localStorage:', error);
+  //     }
+  //   };
 
-    cleanupOldLocalStorage();
-  }, []);
+  //   cleanupOldLocalStorage();
+  // }, []);
 
   // Handle OAuth callback and redirect to dashboard
   useEffect(() => {

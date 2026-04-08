@@ -148,10 +148,23 @@ const FilterDropdown = ({ label, value, options, onChange, placeholder = "All", 
 };
 
 const Learn = () => {
+  const difficultyOrder = {
+    beginner: 1,
+    easy: 2,
+    standard: 3,
+    intermediate: 4,
+    medium: 5,
+    challenging: 6,
+    hard: 7,
+    advanced: 8,
+    expert: 9,
+  };
+
   const pageSize = 50; // Default page size
   const [searchParams, setSearchParams] = useSearchParams();
   const [problems, setProblems] = useState({ count: 0, data: [] });
   const [facets, setFacets] = useState({ difficulties: [], topics: [], grade: [], progress: [] });
+  const [difficultyFacetBase, setDifficultyFacetBase] = useState({});
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -301,6 +314,12 @@ const Learn = () => {
           difficulty: response?.facets?.difficulty || {}
         });
 
+        // Keep a stable source of difficulty options so multi-select does not collapse
+        // to only the currently selected value(s) after filtering.
+        if (!difficultyFilter) {
+          setDifficultyFacetBase(response?.facets?.difficulty || {});
+        }
+
         setTotalCount(response?.count || 0);
 
         setProblems((prev) => {
@@ -360,25 +379,29 @@ const Learn = () => {
   }, [facets.grade, formatGradeLabel]);
 
   const difficultyOptions = useMemo(() => {
-    if (!facets.difficulty || typeof facets.difficulty !== 'object') return [];
+    const currentDifficultyFacet = (facets.difficulty && typeof facets.difficulty === 'object')
+      ? facets.difficulty
+      : {};
+    const baseFacet = (difficultyFacetBase && typeof difficultyFacetBase === 'object')
+      ? difficultyFacetBase
+      : {};
 
-    const difficultyOrder = {
-      beginner: 1,
-      easy: 2,
-      standard: 3,
-      intermediate: 4,
-      medium: 5,
-      challenging: 6,
-      hard: 7,
-      advanced: 8,
-      expert: 9,
-    };
+    const selectedValues = difficultyFilter
+      .split(',')
+      .map(v => v.trim())
+      .filter(Boolean);
 
-    return Object.entries(facets.difficulty)
-      .map(([value, count]) => ({
+    const mergedKeys = Array.from(new Set([
+      ...Object.keys(baseFacet),
+      ...Object.keys(currentDifficultyFacet),
+      ...selectedValues
+    ]));
+
+    return mergedKeys
+      .map((value) => ({
         value,
         label: value,
-        count
+        count: currentDifficultyFacet[value] ?? baseFacet[value] ?? 0
       }))
       .sort((a, b) => {
         const aRank = difficultyOrder[String(a.value).toLowerCase()] ?? 99;
@@ -386,7 +409,7 @@ const Learn = () => {
         if (aRank !== bRank) return aRank - bRank;
         return a.label.localeCompare(b.label);
       });
-  }, [facets.difficulty]);
+  }, [facets.difficulty, difficultyFacetBase, difficultyFilter]);
 
   const completedCount = facets.progress["completed"] !== undefined ? facets.progress["completed"] : 0;
   const inProgressCount = facets.progress["inProgress"] !== undefined
