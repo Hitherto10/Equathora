@@ -423,7 +423,7 @@ const Learn = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
           >
             {/* Search Bar */}
-            <div className="search-row">
+            <div className="search-row ">
               <div id="searchbar-and-icon">
                 <FaSearch
                   id='search-icon'
@@ -432,6 +432,7 @@ const Learn = () => {
                 <input
                   type="search"
                   name="problem-searchbar"
+                  className="py-3"
                   id="problem-searchbar"
                   placeholder='Search by title, topic, or description...'
                   aria-label='searchbar'
