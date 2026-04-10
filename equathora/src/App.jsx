@@ -55,7 +55,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const Resend = lazy(() => import("./pages/Resend"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const Premium = lazy(() => import("./pages/Premium"));
+const Premium = lazy(() => import("./pages/Premium/Premium"));
 const Tracks = lazy(() => import("./pages/Tracks"));
 const Feedback = lazy(() => import("./pages/Feedback"));
 const GetStarted = lazy(() => import("./pages/GetStarted"));
